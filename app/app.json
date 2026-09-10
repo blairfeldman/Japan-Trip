@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Japan Trip",
+    "slug": "japan-trip",
+    "scheme": "japantrip",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#dedbd7",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.blairfeldman.japantrip",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Japan Trip uses your location to show nearby saved pins and to time leave-by alerts for your itinerary.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Japan Trip can alert you when you're near a saved pin, even when the app is in the background."
+      }
+    },
+    "android": {
+      "package": "com.blairfeldman.japantrip",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "GOOGLE_MAPS_API_KEY_PLACEHOLDER"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Japan Trip uses your location to show nearby saved pins and to time leave-by alerts for your itinerary.",
+          "locationAlwaysPermission": "Japan Trip can alert you when you're near a saved pin, even when the app is in the background.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0088b0"
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["text/*"]
+        }
+      ]
+    ]
+  }
+}
