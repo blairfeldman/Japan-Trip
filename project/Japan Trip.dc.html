@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { background: #dedbd7; font-family: "Source Serif 4", Georgia, serif; color: #201e1d; -webkit-font-smoothing: antialiased; }
+  a { color: #006786; text-decoration: none; }
+  a:hover { color: #0088b0; }
+  * { box-sizing: border-box; }
+  ::selection { background: #cbeeff; }
+  .jt-scroll { overflow-y: auto; scrollbar-width: none; }
+  .jt-scroll::-webkit-scrollbar { display: none; }
+  @keyframes jt-pulse { 0%,100% { opacity: .35; transform: scale(1); } 50% { opacity: 0; transform: scale(2.6); } }
+  @keyframes jt-spin { to { transform: rotate(360deg); } }
+  @keyframes jt-bar { 0%,100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+</style>
+</helmet>
+
+<div style="display:flex; gap:36px; align-items:flex-start; justify-content:center; padding:40px 32px 64px; flex-wrap:wrap; min-height:100vh">
+
+  <div style="width:340px; flex:none; padding-top:8px">
+    <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:10px">Prototype · v1</div>
+    <h1 style="font-size:40px; line-height:1.02; font-weight:600; margin:0 0 14px; letter-spacing:-0.01em">Japan Trip</h1>
+    <p style="font-size:15px; line-height:1.5; margin:0 0 22px; color:#444141; text-wrap:pretty">Blair &amp; Yev · Sept 25 – Oct 6 · Tokyo, Hakone, Kyoto, Osaka. Built from your itinerary and budget sheet — every time, seat number and dollar figure below is real.</p>
+
+    <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin:0 0 12px">Screens</div>
+    <div style="display:flex; flex-direction:column; gap:2px; margin-bottom:26px">
+      <sc-for list="{{ index }}" as="s" hint-placeholder-count="12">
+        <button onClick="{{ s.go }}" style="{{ s.style }}" style-hover="background:#e9f8ff">
+          <span style="width:22px; font-size:10px; color:#9b9797; letter-spacing:.08em">{{ s.n }}</span>
+          <span>{{ s.label }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin:0 0 10px">Decisions I made</div>
+    <div style="display:flex; flex-direction:column; gap:11px; font-size:13.5px; line-height:1.45; color:#605d5d">
+      <div><strong style="color:#201e1d; font-weight:600">Day 6 is the hero.</strong> Hakone checkout → Shinkansen → Nintendo Museum is the only day that exercises leave-by alerts, seat numbers, a city change and a timed entry in one screen.</div>
+      <div><strong style="color:#201e1d; font-weight:600">Prepaid = anything booked.</strong> Booked-but-unpaid still reads Prepaid; only true pay-there items get the magenta tag.</div>
+      <div><strong style="color:#201e1d; font-weight:600">Category color lives on the edge.</strong> Seven categories need seven hues, so they sit on the block edge and the pin dot only — never as a fill that fights the paper.</div>
+      <div><strong style="color:#201e1d; font-weight:600">Tabelog has no public API.</strong> Reservations come in by forwarding the confirmation email, or by hand — the Inbox screen handles both.</div>
+    </div>
+
+    <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin:26px 0 10px">Categories</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px 14px">
+      <sc-for list="{{ legend }}" as="c" hint-placeholder-count="7">
+        <div style="display:flex; align-items:center; gap:7px; font-size:13px; color:#444141">
+          <span style="{{ c.dot }}"></span>{{ c.label }}
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin:26px 0 10px">Next up</div>
+    <div style="font-size:13.5px; line-height:1.5; color:#605d5d">Lock-screen notification set · trip recap · pin clustering at city zoom · a real Google Maps key so the base map is live.</div>
+  </div>
+
+  <div style="flex:none">
+    <div style="width:432px; height:912px; background:#1a1918; border-radius:44px; padding:10px; box-shadow:0 24px 60px rgba(45,43,43,.34), 0 2px 0 rgba(255,255,255,.16) inset">
+      <div style="width:412px; height:892px; background:#f3f2f2; border-radius:35px; overflow:hidden; display:flex; flex-direction:column; position:relative">
+
+        <div style="height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 20px; font-size:13px; font-weight:600; letter-spacing:.01em; position:relative; z-index:6">
+          <span>11:12</span>
+          <div style="position:absolute; left:50%; top:8px; transform:translateX(-50%); width:20px; height:20px; border-radius:50%; background:#1a1918"></div>
+          <div style="display:flex; align-items:center; gap:6px; font-size:14px; color:#201e1d">
+            <sc-if value="{{ offline }}"><i class="ph-duotone ph-wifi-slash" style="color:#aa0b56"></i></sc-if>
+            <sc-if value="{{ online }}" hint-placeholder-val="{{ true }}"><i class="ph-duotone ph-wifi-high"></i></sc-if>
+            <i class="ph-duotone ph-cell-signal-medium"></i>
+            <span style="font-size:12.5px">63%</span>
+          </div>
+        </div>
+
+        <sc-if value="{{ offline }}">
+          <div style="flex:none; background:#4b1528; color:#ffdee6; font-size:12.5px; padding:6px 20px; display:flex; align-items:center; gap:8px">
+            <i class="ph-duotone ph-cloud-slash"></i> Offline — Kyoto map + today's plan are cached
+          </div>
+        </sc-if>
+
+        <div class="jt-scroll" style="flex:1; min-height:0; position:relative">
+
+          <!-- ══════════ NOW ══════════ -->
+          <sc-if value="{{ isNow }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:14px 20px 28px">
+              <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:2px">
+                <div>
+                  <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">Day 6 of 12 · Wed 9/30</div>
+                  <h2 style="margin:4px 0 0; font-size:31px; line-height:1.06; font-weight:600; letter-spacing:-0.01em">Hakone <span style="color:#9b9797">→</span> Kyoto</h2>
+                </div>
+                <div style="text-align:right; flex:none; padding-top:14px">
+                  <div style="display:flex; align-items:baseline; gap:7px; justify-content:flex-end">
+                    <span style="font-size:14px; font-weight:400; color:#9b9797; line-height:1">59°</span>
+                    <span style="font-size:26px; font-weight:600; line-height:1">64°</span>
+                    <span style="font-size:14px; font-weight:400; color:#9b9797; line-height:1">71°</span>
+                  </div>
+                  <div style="font-size:11.5px; color:#7d7979; display:flex; align-items:center; gap:4px; justify-content:flex-end; margin-top:3px"><i class="ph-duotone ph-cloud-rain"></i>light rain</div>
+                </div>
+              </div>
+
+              <div style="height:1px; background:#201e1d; margin:16px 0 0"></div>
+              <div style="height:3px; background:#201e1d; margin:2px 0 20px"></div>
+
+              <div style="background:#ffffff; border-radius:2px; box-shadow:0 3px 10px rgba(45,43,43,.16); padding:18px 18px 16px; margin-bottom:22px; border-left:3px solid #d6006c">
+                <div style="display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#aa0b56; margin-bottom:10px">
+                  <span style="position:relative; display:inline-flex; width:8px; height:8px">
+                    <span style="position:absolute; inset:0; border-radius:50%; background:#d6006c; animation:jt-pulse 2s ease-out infinite"></span>
+                    <span style="position:absolute; inset:0; border-radius:50%; background:#d6006c"></span>
+                  </span>
+                  Leave in {{ leaveIn }} min
+                </div>
+                <div style="font-size:24px; line-height:1.15; font-weight:600; margin-bottom:6px">Head to Odawara Station</div>
+                <div style="font-size:14.5px; color:#605d5d; line-height:1.45; margin-bottom:14px">Hakone Tozan bus + train, 25 min from Gora Kadan. Leave by <strong style="color:#201e1d; font-weight:600">11:35</strong> to make the 12:07 Shinkansen with a 7 min buffer.</div>
+                <div style="height:6px; background:#eae7e7; border-radius:3px; overflow:hidden; margin-bottom:14px">
+                  <div style="{{ leaveBarStyle }}"></div>
+                </div>
+                <div style="display:flex; gap:8px">
+                  <button onClick="{{ goMap }}" style="flex:1; min-height:44px; border:none; border-radius:2px; background:#0088b0; color:#fff; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px" style-hover="background:#1186ac" style-active="background:#006786"><i class="ph-duotone ph-navigation-arrow"></i>Directions</button>
+                  <button onClick="{{ snooze }}" style="min-height:44px; padding:0 16px; border:1px solid #d7d3d3; border-radius:2px; background:transparent; color:#201e1d; font-family:inherit; font-size:15px; cursor:pointer; white-space:nowrap" style-hover="background:#eae7e7">{{ snoozeLabel }}</button>
+                </div>
+              </div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:12px">Then today</div>
+              <div style="display:flex; flex-direction:column; gap:0; margin-bottom:26px">
+                <sc-for list="{{ upNext }}" as="e" hint-placeholder-count="3">
+                  <button onClick="{{ e.open }}" style="display:flex; gap:14px; align-items:flex-start; text-align:left; background:none; border:none; border-top:1px solid #e2dfdf; padding:13px 0; font-family:inherit; cursor:pointer; width:100%" style-hover="background:#eae7e7">
+                    <span style="font-size:14px; font-weight:600; width:52px; flex:none; padding-top:1px">{{ e.time }}</span>
+                    <span style="{{ e.rule }}"></span>
+                    <span style="flex:1; min-width:0">
+                      <span style="display:block; font-size:16px; line-height:1.25; font-weight:600">{{ e.title }}</span>
+                      <span style="display:block; font-size:13px; color:#7d7979; margin-top:2px">{{ e.sub }}</span>
+                    </span>
+                    <span style="{{ e.tagStyle }}">{{ e.tag }}</span>
+                  </button>
+                </sc-for>
+              </div>
+
+              <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px">
+                <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">Saved nearby</div>
+                <button onClick="{{ goMap }}" style="background:none; border:none; font-family:inherit; font-size:13px; color:#006786; cursor:pointer; padding:0">See all 47</button>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0">
+                <sc-for list="{{ nearby }}" as="p" hint-placeholder-count="2">
+                  <button onClick="{{ p.open }}" style="display:flex; gap:12px; align-items:center; text-align:left; background:none; border:none; border-top:1px solid #e2dfdf; padding:13px 0; font-family:inherit; cursor:pointer; width:100%" style-hover="background:#eae7e7">
+                    <span style="{{ p.dot }}"></span>
+                    <span style="flex:1; min-width:0">
+                      <span style="display:block; font-size:16px; font-weight:600; line-height:1.25">{{ p.name }}</span>
+                      <span style="display:block; font-size:13px; color:#7d7979; margin-top:2px">{{ p.sub }}</span>
+                    </span>
+                    <span style="{{ p.avatar }}">{{ p.who }}</span>
+                    <span style="font-size:13px; color:#7d7979; width:52px; text-align:right">{{ p.dist }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ MAP ══════════ -->
+          <sc-if value="{{ isMap }}">
+            <div style="position:relative; height:100%; background:#eceae4">
+              <div style="position:absolute; inset:0">
+                <svg viewBox="0 0 412 780" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="display:block">
+                  <rect x="0" y="0" width="412" height="780" fill="#eeece6"></rect>
+                  <rect x="-40" y="300" width="500" height="34" fill="#c3d9e6" transform="rotate(-7 206 317)"></rect>
+                  <rect x="18" y="120" width="112" height="86" rx="4" fill="#d8e6cf"></rect>
+                  <rect x="248" y="470" width="150" height="120" rx="4" fill="#d8e6cf"></rect>
+                  <rect x="292" y="150" width="86" height="70" rx="4" fill="#e3ded4"></rect>
+                  <g stroke="#ffffff" stroke-linecap="square">
+                    <line x1="0" y1="90" x2="412" y2="90" stroke-width="9"></line>
+                    <line x1="0" y1="238" x2="412" y2="238" stroke-width="13"></line>
+                    <line x1="0" y1="392" x2="412" y2="392" stroke-width="9"></line>
+                    <line x1="0" y1="540" x2="412" y2="540" stroke-width="13"></line>
+                    <line x1="0" y1="676" x2="412" y2="676" stroke-width="9"></line>
+                    <line x1="72" y1="0" x2="72" y2="780" stroke-width="9"></line>
+                    <line x1="182" y1="0" x2="182" y2="780" stroke-width="13"></line>
+                    <line x1="286" y1="0" x2="286" y2="780" stroke-width="9"></line>
+                    <line x1="366" y1="0" x2="366" y2="780" stroke-width="7"></line>
+                  </g>
+                  <g stroke="#f8f7f4" stroke-width="4">
+                    <line x1="0" y1="160" x2="412" y2="160"></line>
+                    <line x1="0" y1="316" x2="412" y2="316"></line>
+                    <line x1="0" y1="466" x2="412" y2="466"></line>
+                    <line x1="0" y1="612" x2="412" y2="612"></line>
+                    <line x1="128" y1="0" x2="128" y2="780"></line>
+                    <line x1="232" y1="0" x2="232" y2="780"></line>
+                    <line x1="330" y1="0" x2="330" y2="780"></line>
+                  </g>
+                  <g stroke="#e0ac6b" stroke-width="6" stroke-linecap="round">
+                    <line x1="0" y1="238" x2="412" y2="238"></line>
+                    <line x1="182" y1="0" x2="182" y2="780"></line>
+                  </g>
+                  <polyline points="96,650 152,520 182,392 252,300 318,196" fill="none" stroke="#0088b0" stroke-width="4" stroke-dasharray="1 10" stroke-linecap="round" opacity="0.85"></polyline>
+                </svg>
+              </div>
+
+              <sc-if value="{{ offline }}">
+                <div style="position:absolute; inset:0; background:rgba(243,242,242,.35); backdrop-filter:saturate(.35)"></div>
+              </sc-if>
+
+              <sc-for list="{{ savedPins }}" as="p" hint-placeholder-count="6">
+                <button onClick="{{ p.open }}" style="{{ p.style }}" title="{{ p.name }}"></button>
+              </sc-for>
+              <sc-for list="{{ stopPins }}" as="p" hint-placeholder-count="5">
+                <button onClick="{{ p.open }}" style="{{ p.style }}">{{ p.n }}</button>
+              </sc-for>
+
+              <div style="position:absolute; left:96px; top:650px; transform:translate(-50%,-50%); width:18px; height:18px; border-radius:50%; background:#1a73e8; border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>
+
+              <div style="position:absolute; left:16px; right:16px; top:14px">
+                <div style="background:#fff; border-radius:2px; box-shadow:0 3px 10px rgba(45,43,43,.2); display:flex; align-items:center; gap:10px; padding:0 14px; height:50px">
+                  <i class="ph-duotone ph-magnifying-glass" style="font-size:19px; color:#7d7979"></i>
+                  <span style="flex:1; font-size:16px; color:#9b9797">Search 47 saved places</span>
+                  <span style="width:28px; height:28px; border-radius:50%; background:#006786; color:#fff; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center">B</span>
+                </div>
+                <div class="jt-scroll" style="display:flex; gap:7px; overflow-x:auto; padding:11px 0 2px">
+                  <sc-for list="{{ filters }}" as="f" hint-placeholder-count="8">
+                    <button onClick="{{ f.toggle }}" style="{{ f.style }}">
+                      <span style="{{ f.dot }}"></span>{{ f.label }}
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="position:absolute; right:16px; bottom:186px; display:flex; flex-direction:column; gap:10px">
+                <button onClick="{{ toggleOffline }}" style="width:46px; height:46px; border-radius:50%; border:none; background:#fff; box-shadow:0 3px 10px rgba(45,43,43,.2); cursor:pointer; font-size:20px; color:#444141" style-hover="background:#e9f8ff"><i class="ph-duotone ph-cloud-slash"></i></button>
+                <button onClick="{{ goAddPin }}" style="width:46px; height:46px; border-radius:50%; border:none; background:#fff; box-shadow:0 3px 10px rgba(45,43,43,.2); cursor:pointer; font-size:20px; color:#444141" style-hover="background:#e9f8ff"><i class="ph-duotone ph-plus"></i></button>
+                <button style="width:46px; height:46px; border-radius:50%; border:none; background:#fff; box-shadow:0 3px 10px rgba(45,43,43,.2); cursor:pointer; font-size:20px; color:#0088b0" style-hover="background:#e9f8ff"><i class="ph-duotone ph-crosshair-simple"></i></button>
+              </div>
+
+              <div style="position:absolute; left:0; right:0; bottom:0; background:#f3f2f2; border-radius:14px 14px 0 0; box-shadow:0 -4px 20px rgba(45,43,43,.16); padding:8px 20px 18px">
+                <div style="width:36px; height:4px; border-radius:2px; background:#d7d3d3; margin:0 auto 12px"></div>
+                <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px">
+                  <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">Within 1 km</div>
+                  <button onClick="{{ goDays }}" style="background:none; border:none; font-family:inherit; font-size:13px; color:#006786; cursor:pointer; padding:0">Today's route</button>
+                </div>
+                <sc-for list="{{ nearby }}" as="p" hint-placeholder-count="2">
+                  <button onClick="{{ p.open }}" style="display:flex; gap:12px; align-items:center; text-align:left; background:none; border:none; border-top:1px solid #e2dfdf; padding:12px 0; font-family:inherit; cursor:pointer; width:100%" style-hover="background:#eae7e7">
+                    <span style="{{ p.dot }}"></span>
+                    <span style="flex:1; min-width:0">
+                      <span style="display:block; font-size:15.5px; font-weight:600">{{ p.name }}</span>
+                      <span style="display:block; font-size:13px; color:#7d7979; margin-top:1px">{{ p.sub }}</span>
+                    </span>
+                    <span style="font-size:13px; color:#7d7979">{{ p.dist }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ DAYS ══════════ -->
+          <sc-if value="{{ isDays }}">
+            <div style="display:flex; flex-direction:column; height:100%">
+              <div style="flex:none; padding:12px 0 0; background:#f3f2f2; border-bottom:1px solid #e2dfdf">
+                <div style="display:flex; align-items:flex-end; justify-content:space-between; padding:0 20px 10px">
+                  <div>
+                    <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">{{ dayCity }}</div>
+                    <h2 style="margin:3px 0 0; font-size:26px; font-weight:600; line-height:1">{{ dayHeading }}</h2>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font-size:17px; font-weight:600">{{ dayCost }}</div>
+                    <div style="font-size:11.5px; color:#7d7979">{{ dayCostSub }}</div>
+                  </div>
+                </div>
+                <div class="jt-scroll" style="display:flex; gap:4px; overflow-x:auto; padding:0 20px 10px">
+                  <sc-for list="{{ dayStrip }}" as="d" hint-placeholder-count="12">
+                    <button onClick="{{ d.pick }}" style="{{ d.style }}">
+                      <span style="display:block; font-size:10px; letter-spacing:.08em; text-transform:uppercase; opacity:.7">{{ d.dow }}</span>
+                      <span style="display:block; font-size:16px; font-weight:600; line-height:1.2">{{ d.dom }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div class="jt-scroll" style="flex:1; min-height:0; position:relative">
+                <div style="position:relative; padding:10px 0 40px">
+                  <div style="position:relative; height:960px; margin-left:56px; margin-right:16px; background:repeating-linear-gradient(to bottom, #e6e3e3 0 1px, transparent 1px 60px)">
+                    <sc-for list="{{ hours }}" as="h" hint-placeholder-count="17">
+                      <div style="{{ h.style }}">{{ h.label }}</div>
+                    </sc-for>
+
+                    <sc-for list="{{ blocks }}" as="b" hint-placeholder-count="10">
+                      <button onClick="{{ b.open }}" style="{{ b.style }}">
+                        <span style="{{ b.titleStyle }}">{{ b.title }}</span>
+                        <span style="{{ b.subStyle }}">{{ b.sub }}</span>
+                        <span style="{{ b.tagStyle }}">{{ b.tag }}</span>
+                      </button>
+                    </sc-for>
+
+                    <div style="{{ nowLineStyle }}">
+                      <span style="position:absolute; left:-8px; top:-5px; width:11px; height:11px; border-radius:50%; background:#d6006c"></span>
+                      <span style="position:absolute; left:-56px; top:-9px; font-size:11px; font-weight:600; color:#d6006c; width:44px; text-align:right">11:12</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ EVENT DETAIL ══════════ -->
+          <sc-if value="{{ isEvent }}">
+            <div>
+              <div style="height:150px; background:#eae7e7; position:relative; background-image:repeating-linear-gradient(135deg, #dedbdb 0 6px, #eae7e7 6px 12px); display:flex; align-items:flex-end; padding:16px 20px">
+                <button onClick="{{ back }}" style="position:absolute; left:14px; top:14px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(243,242,242,.92); font-size:19px; cursor:pointer; color:#201e1d" style-hover="background:#fff"><i class="ph-duotone ph-arrow-left"></i></button>
+                <div style="font-family:ui-monospace,Menlo,monospace; font-size:11px; color:#7d7979; background:rgba(243,242,242,.9); padding:3px 8px">station photo</div>
+              </div>
+              <div style="padding:18px 20px 28px">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px">
+                  <span style="width:9px; height:9px; border-radius:50%; background:#7d7979"></span>
+                  <span style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">Transport · Day 6</span>
+                  <span style="margin-left:auto; font-size:11px; letter-spacing:.1em; text-transform:uppercase; background:#cbeeff; color:#004961; padding:3px 8px">Prepaid</span>
+                </div>
+                <h2 style="margin:0 0 4px; font-size:29px; line-height:1.1; font-weight:600; letter-spacing:-0.01em">Shinkansen HIKARI 641</h2>
+                <div style="font-size:15px; color:#605d5d; margin-bottom:20px">Wed Sept 30 · Odawara → Kyoto · 2h 05m</div>
+
+                <div style="display:flex; align-items:stretch; gap:14px; margin-bottom:22px">
+                  <div style="display:flex; flex-direction:column; align-items:center; padding-top:6px">
+                    <span style="width:11px; height:11px; border-radius:50%; border:2px solid #201e1d"></span>
+                    <span style="flex:1; width:2px; background:#d7d3d3; margin:3px 0"></span>
+                    <span style="width:11px; height:11px; border-radius:50%; background:#201e1d"></span>
+                  </div>
+                  <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between; gap:22px">
+                    <div><div style="font-size:20px; font-weight:600; line-height:1.1">12:07 &nbsp;Odawara</div><div style="font-size:13.5px; color:#7d7979">Platform 11 · Tokaido Shinkansen</div></div>
+                    <div><div style="font-size:20px; font-weight:600; line-height:1.1">14:12 &nbsp;Kyoto</div><div style="font-size:13.5px; color:#7d7979">Central exit for Kintetsu transfer</div></div>
+                  </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#e2dfdf; margin-bottom:20px">
+                  <sc-for list="{{ eventFields }}" as="f" hint-placeholder-count="6">
+                    <div style="background:#f3f2f2; padding:12px 2px 12px 0">
+                      <div style="font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#7d7979; margin-bottom:3px">{{ f.k }}</div>
+                      <div style="font-size:16px; font-weight:600">{{ f.v }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="display:flex; gap:12px; align-items:center; background:#fff; box-shadow:0 1px 2px rgba(45,43,43,.14); padding:12px 14px; margin-bottom:20px">
+                  <div style="width:58px; height:58px; flex:none; background:repeating-conic-gradient(#201e1d 0 25%, #fff 0 50%) 0 0/9px 9px"></div>
+                  <div style="flex:1">
+                    <div style="font-size:15px; font-weight:600">e-ticket.pdf</div>
+                    <div style="font-size:12.5px; color:#7d7979">Scan at the gate · saved offline</div>
+                  </div>
+                  <i class="ph-duotone ph-download-simple" style="font-size:21px; color:#0088b0"></i>
+                </div>
+
+                <div style="font-size:13px; color:#7d7979; line-height:1.5; margin-bottom:22px; display:flex; gap:8px; align-items:flex-start">
+                  <i class="ph-duotone ph-envelope-simple-open" style="font-size:17px; color:#9b9797; margin-top:1px"></i>
+                  <span>Parsed from a confirmation you forwarded to <span style="color:#006786">japan@trip.mail</span> on Aug 14. Free cancellation until 12:00 on Sept 30.</span>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-bottom:22px">
+                  <button onClick="{{ goMap }}" style="flex:1; min-height:46px; border:none; border-radius:2px; background:#0088b0; color:#fff; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px" style-hover="background:#1186ac" style-active="background:#006786"><i class="ph-duotone ph-map-pin-line"></i>Open in Maps</button>
+                  <button style="min-height:46px; padding:0 16px; border:1px solid #d7d3d3; border-radius:2px; background:transparent; font-family:inherit; font-size:15px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7">Edit</button>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#7d7979">
+                  <span style="width:26px; height:26px; border-radius:50%; background:#006786; color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center">B</span>
+                  <span style="width:26px; height:26px; border-radius:50%; background:#aa0b56; color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; margin-left:-14px">Y</span>
+                  <span style="margin-left:4px">Seats 12-D and 12-E, both travellers</span>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ MONEY ══════════ -->
+          <sc-if value="{{ isMoney }}">
+            <div style="padding:14px 20px 28px">
+              <div style="display:flex; align-items:baseline; justify-content:space-between">
+                <h2 style="margin:0; font-size:31px; font-weight:600; letter-spacing:-0.01em">Money</h2>
+                <button onClick="{{ goConvert }}" style="background:none; border:1px solid #d7d3d3; border-radius:2px; font-family:inherit; font-size:13.5px; color:#201e1d; cursor:pointer; padding:7px 12px; display:flex; align-items:center; gap:6px; min-height:36px" style-hover="background:#e9f8ff"><i class="ph-duotone ph-currency-jpy" style="color:#0088b0"></i>Convert</button>
+              </div>
+              <div style="height:1px; background:#201e1d; margin:14px 0 0"></div>
+              <div style="height:3px; background:#201e1d; margin:2px 0 20px"></div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">Trip total, two travellers</div>
+              <div style="display:flex; align-items:baseline; gap:10px; margin:6px 0 4px">
+                <span style="font-size:42px; font-weight:600; letter-spacing:-0.02em; line-height:1">$6,418</span>
+                <span style="font-size:17px; color:#7d7979">¥962,812</span>
+              </div>
+              <div style="font-size:13.5px; color:#605d5d; margin-bottom:14px">$3,209 each · at ¥150 to the dollar</div>
+
+              <div style="display:flex; height:10px; margin-bottom:8px">
+                <div style="width:64%; background:#0088b0"></div>
+                <div style="width:26%; background:#99e0ff"></div>
+                <div style="width:10%; background:#ffc0d0"></div>
+              </div>
+              <div style="display:flex; gap:14px; font-size:12.5px; color:#605d5d; margin-bottom:26px; flex-wrap:wrap">
+                <span><span style="display:inline-block; width:8px; height:8px; background:#0088b0; margin-right:5px"></span>Prepaid $4,108</span>
+                <span><span style="display:inline-block; width:8px; height:8px; background:#99e0ff; margin-right:5px"></span>Pay there $1,707</span>
+                <span><span style="display:inline-block; width:8px; height:8px; background:#ffc0d0; margin-right:5px"></span>Undecided $603</span>
+              </div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:4px">Today · Day 6</div>
+              <div style="display:flex; align-items:baseline; gap:9px; margin-bottom:10px">
+                <span style="font-size:24px; font-weight:600">$502.27</span>
+                <span style="font-size:14px; color:#7d7979">¥75,340</span>
+              </div>
+              <div style="margin-bottom:26px">
+                <sc-for list="{{ todayCosts }}" as="c" hint-placeholder-count="5">
+                  <div style="display:flex; gap:12px; align-items:center; border-top:1px solid #e2dfdf; padding:12px 0">
+                    <span style="{{ c.dot }}"></span>
+                    <span style="flex:1; min-width:0">
+                      <span style="display:block; font-size:15.5px; font-weight:600; line-height:1.25">{{ c.item }}</span>
+                      <span style="{{ c.tagStyle }}">{{ c.tag }}</span>
+                    </span>
+                    <span style="text-align:right">
+                      <span style="display:block; font-size:15.5px; font-weight:600">{{ c.usd }}</span>
+                      <span style="display:block; font-size:12px; color:#9b9797">{{ c.jpy }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:12px">Not booked yet · 3 decisions</div>
+              <div style="display:flex; flex-direction:column; gap:12px">
+                <sc-for list="{{ decisions }}" as="d" hint-placeholder-count="3">
+                  <div style="background:#fff; box-shadow:0 1px 2px rgba(45,43,43,.14); border-left:3px solid #ff90b1; padding:14px 15px">
+                    <div style="display:flex; justify-content:space-between; gap:10px; align-items:baseline">
+                      <div style="font-size:16.5px; font-weight:600; line-height:1.25">{{ d.name }}</div>
+                      <div style="font-size:16.5px; font-weight:600; white-space:nowrap">{{ d.usd }}</div>
+                    </div>
+                    <div style="font-size:13px; color:#7d7979; margin:3px 0 12px">{{ d.sub }}</div>
+                    <div style="display:flex; gap:8px">
+                      <button style="flex:1; min-height:42px; border:none; border-radius:2px; background:#0088b0; color:#fff; font-family:inherit; font-size:14.5px; font-weight:600; cursor:pointer" style-hover="background:#1186ac">Book it</button>
+                      <button style="flex:1; min-height:42px; border:1px solid #d7d3d3; border-radius:2px; background:transparent; font-family:inherit; font-size:14.5px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7">Skip</button>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ CONVERTER ══════════ -->
+          <sc-if value="{{ isConvert }}">
+            <div style="display:flex; flex-direction:column; height:100%">
+              <div style="flex:none; padding:12px 20px 0; display:flex; align-items:center; gap:12px">
+                <button onClick="{{ goMoney }}" style="width:40px; height:40px; border-radius:50%; border:none; background:transparent; font-size:19px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7"><i class="ph-duotone ph-arrow-left"></i></button>
+                <h2 style="margin:0; font-size:22px; font-weight:600">Convert</h2>
+                <button onClick="{{ flipDir }}" style="margin-left:auto; background:none; border:1px solid #d7d3d3; border-radius:2px; font-family:inherit; font-size:14px; padding:7px 16px; cursor:pointer; color:#201e1d; min-height:38px; white-space:nowrap" style-hover="background:#e9f8ff">{{ dirLabel }}</button>
+              </div>
+
+              <div style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; padding:0 20px">
+                <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">{{ fromLabel }}</div>
+                <div style="font-size:52px; font-weight:600; letter-spacing:-0.02em; line-height:1.1; margin:2px 0 18px; border-bottom:2px solid #201e1d; padding-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ fromValue }}</div>
+                <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">{{ toLabel }}</div>
+                <div style="font-size:52px; font-weight:600; letter-spacing:-0.02em; line-height:1.1; margin:2px 0 14px; color:#006786">{{ toValue }}</div>
+                <div style="font-size:13px; color:#7d7979">¥150 = $1.00 · updated this morning</div>
+                <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap">
+                  <sc-for list="{{ quickAmounts }}" as="q" hint-placeholder-count="4">
+                    <button onClick="{{ q.pick }}" style="border:1px solid #d7d3d3; border-radius:2px; background:transparent; font-family:inherit; font-size:14px; padding:9px 13px; cursor:pointer; color:#201e1d; min-height:40px" style-hover="background:#e9f8ff">{{ q.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="flex:none; background:#eae7e7; padding:10px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px">
+                <sc-for list="{{ keys }}" as="k" hint-placeholder-count="12">
+                  <button onClick="{{ k.press }}" style="{{ k.style }}" style-active="background:#cbeeff">{{ k.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ PHRASES ══════════ -->
+          <sc-if value="{{ isPhrases }}">
+            <div style="padding:14px 20px 28px">
+              <h2 style="margin:0; font-size:31px; font-weight:600; letter-spacing:-0.01em">Phrases</h2>
+              <div style="height:1px; background:#201e1d; margin:14px 0 0"></div>
+              <div style="height:3px; background:#201e1d; margin:2px 0 18px"></div>
+              <div style="display:flex; align-items:center; gap:10px; border:1px solid #d7d3d3; border-radius:2px; padding:0 12px; height:46px; margin-bottom:22px">
+                <i class="ph-duotone ph-magnifying-glass" style="font-size:18px; color:#7d7979"></i>
+                <span style="font-size:15.5px; color:#9b9797">Search 84 phrases</span>
+              </div>
+              <sc-for list="{{ situations }}" as="s" hint-placeholder-count="8">
+                <button onClick="{{ s.open }}" style="display:flex; align-items:center; gap:14px; width:100%; text-align:left; background:none; border:none; border-top:1px solid #e2dfdf; padding:15px 0; font-family:inherit; cursor:pointer; min-height:56px" style-hover="background:#eae7e7">
+                  <i class="{{ s.icon }}" style="font-size:24px; color:#0088b0; width:26px"></i>
+                  <span style="flex:1">
+                    <span style="display:block; font-size:17.5px; font-weight:600; line-height:1.2">{{ s.label }}</span>
+                    <span style="display:block; font-size:13px; color:#7d7979; margin-top:2px">{{ s.sub }}</span>
+                  </span>
+                  <span style="font-size:13px; color:#9b9797">{{ s.count }}</span>
+                  <i class="ph-duotone ph-caret-right" style="font-size:16px; color:#bab6b6"></i>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ PHRASE PRACTICE ══════════ -->
+          <sc-if value="{{ isPhrase }}">
+            <div style="padding:12px 0 28px">
+              <div style="display:flex; align-items:center; gap:10px; padding:0 20px 6px">
+                <button onClick="{{ goPhrases }}" style="width:40px; height:40px; border-radius:50%; border:none; background:transparent; font-size:19px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7"><i class="ph-duotone ph-arrow-left"></i></button>
+                <h2 style="margin:0; font-size:22px; font-weight:600">Restaurant &amp; ordering</h2>
+              </div>
+
+              <div style="margin:10px 20px 20px; background:#fff; box-shadow:0 3px 10px rgba(45,43,43,.16); border-left:3px solid #0088b0; padding:18px">
+                <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:10px">Now practising</div>
+                <div style="font-size:15px; color:#605d5d; margin-bottom:10px">Do you have an English menu?</div>
+                <div style="font-size:27px; line-height:1.3; font-weight:600; margin-bottom:6px; display:flex; flex-wrap:wrap; gap:0 9px">
+                  <sc-for list="{{ words }}" as="w" hint-placeholder-count="4">
+                    <span style="{{ w.style }}">{{ w.t }}</span>
+                  </sc-for>
+                </div>
+                <div style="font-size:19px; color:#444141; margin-bottom:18px">英語のメニューはありますか？</div>
+
+                <div style="display:flex; align-items:center; gap:12px">
+                  <button onClick="{{ togglePlay }}" style="width:56px; height:56px; border-radius:50%; border:none; background:#0088b0; color:#fff; font-size:25px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex:none" style-hover="background:#1186ac" style-active="background:#006786"><i class="{{ playIcon }}"></i></button>
+                  <div style="flex:1; display:flex; align-items:center; gap:3px; height:34px">
+                    <sc-for list="{{ waveBars }}" as="b" hint-placeholder-count="26">
+                      <span style="{{ b.style }}"></span>
+                    </sc-for>
+                  </div>
+                  <button onClick="{{ toggleSlow }}" style="{{ slowStyle }}">{{ slowLabel }}</button>
+                </div>
+              </div>
+
+              <div style="padding:0 20px">
+                <sc-for list="{{ phraseList }}" as="p" hint-placeholder-count="6">
+                  <div style="border-top:1px solid #e2dfdf; padding:14px 0; display:flex; gap:14px; align-items:flex-start">
+                    <div style="flex:1; min-width:0">
+                      <div style="font-size:14px; color:#7d7979; margin-bottom:3px">{{ p.en }}</div>
+                      <div style="font-size:19px; font-weight:600; line-height:1.25">{{ p.romaji }}</div>
+                      <div style="font-size:16px; color:#444141; margin-top:2px">{{ p.jp }}</div>
+                    </div>
+                    <button onClick="{{ p.play }}" style="width:44px; height:44px; border-radius:50%; border:1px solid #d7d3d3; background:transparent; font-size:19px; color:#0088b0; cursor:pointer; flex:none" style-hover="background:#e9f8ff"><i class="ph-duotone ph-speaker-high"></i></button>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ PIN DETAIL ══════════ -->
+          <sc-if value="{{ isPin }}">
+            <div>
+              <div style="height:190px; background-image:repeating-linear-gradient(135deg, #dedbdb 0 6px, #eae7e7 6px 12px); position:relative; display:flex; align-items:flex-end; padding:16px 20px">
+                <button onClick="{{ back }}" style="position:absolute; left:14px; top:14px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(243,242,242,.92); font-size:19px; cursor:pointer; color:#201e1d" style-hover="background:#fff"><i class="ph-duotone ph-arrow-left"></i></button>
+                <div style="font-family:ui-monospace,Menlo,monospace; font-size:11px; color:#7d7979; background:rgba(243,242,242,.9); padding:3px 8px">TikTok cover frame</div>
+              </div>
+              <div style="padding:18px 20px 28px">
+                <div style="display:flex; align-items:center; gap:9px; margin-bottom:8px">
+                  <span style="width:10px; height:10px; border-radius:50%; background:oklch(0.55 0.16 30)"></span>
+                  <span style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979">Ramen · Kanda, Tokyo</span>
+                </div>
+                <h2 style="margin:0 0 4px; font-size:29px; font-weight:600; line-height:1.1; letter-spacing:-0.01em">Kikanbo 鬼金棒</h2>
+                <div style="font-size:15px; color:#605d5d; margin-bottom:18px">Karashibi miso ramen · queue 20–40 min · cash + IC</div>
+
+                <div style="background:#fff1f4; border-left:3px solid #d6006c; padding:12px 14px; margin-bottom:20px">
+                  <div style="font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:#aa0b56; margin-bottom:5px">Merged duplicate</div>
+                  <div style="font-size:14.5px; line-height:1.45; color:#444141">Shared twice — once by Yev from <span style="font-weight:600">@tokyoramenwalk</span>, once by you from <span style="font-weight:600">@notanotherfoodie</span>. Same address, so it stayed one pin.</div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:0; margin-bottom:20px">
+                  <sc-for list="{{ pinFacts }}" as="f" hint-placeholder-count="4">
+                    <div style="display:flex; gap:12px; border-top:1px solid #e2dfdf; padding:12px 0; align-items:flex-start">
+                      <i class="{{ f.icon }}" style="font-size:19px; color:#9b9797; width:22px"></i>
+                      <div style="flex:1"><div style="font-size:15.5px; line-height:1.35">{{ f.v }}</div></div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="display:flex; gap:12px; align-items:center; background:#fff; box-shadow:0 1px 2px rgba(45,43,43,.14); padding:12px 14px; margin-bottom:20px">
+                  <div style="width:52px; height:66px; flex:none; background-image:repeating-linear-gradient(135deg, #dedbdb 0 5px, #eae7e7 5px 10px)"></div>
+                  <div style="flex:1; min-width:0">
+                    <div style="font-size:14.5px; font-weight:600">@tokyoramenwalk</div>
+                    <div style="font-size:13px; color:#7d7979; line-height:1.35">“the spicy numbing one everyone lines up for”</div>
+                  </div>
+                  <i class="ph-duotone ph-play-circle" style="font-size:26px; color:#0088b0"></i>
+                </div>
+
+                <div style="display:flex; gap:8px">
+                  <button style="flex:1; min-height:46px; border:none; border-radius:2px; background:#0088b0; color:#fff; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px" style-hover="background:#1186ac"><i class="ph-duotone ph-navigation-arrow"></i>Directions</button>
+                  <button onClick="{{ goDays }}" style="flex:1; min-height:46px; border:1px solid #d7d3d3; border-radius:2px; background:transparent; font-family:inherit; font-size:15px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7">Add to a day</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ SHARE SHEET ══════════ -->
+          <sc-if value="{{ isShare }}">
+            <div style="height:100%; position:relative; background:#201e1d">
+              <div style="position:absolute; inset:0; opacity:.45; background-image:repeating-linear-gradient(135deg, #2d2b2b 0 8px, #201e1d 8px 16px)"></div>
+              <div style="position:absolute; top:22px; left:0; right:0; text-align:center; color:#9b9797; font-size:13px; font-family:ui-monospace,Menlo,monospace">shared from TikTok</div>
+
+              <div style="position:absolute; left:0; right:0; bottom:0; background:#f3f2f2; border-radius:14px 14px 0 0; padding:10px 20px 24px">
+                <div style="width:36px; height:4px; border-radius:2px; background:#d7d3d3; margin:0 auto 16px"></div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px">
+                  <div style="width:34px; height:34px; background:#201e1d; color:#f3f2f2; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:600">日</div>
+                  <div style="font-size:17px; font-weight:600">Save to Japan Trip</div>
+                  <button onClick="{{ cycleShare }}" style="margin-left:auto; background:none; border:1px solid #d7d3d3; border-radius:2px; font-family:inherit; font-size:12.5px; padding:6px 10px; cursor:pointer; color:#605d5d; min-height:34px" style-hover="background:#e9f8ff">Next state</button>
+                </div>
+
+                <sc-if value="{{ shareParsing }}" hint-placeholder-val="{{ true }}">
+                  <div style="padding:8px 0 18px">
+                    <div style="display:flex; gap:14px; align-items:center; margin-bottom:20px">
+                      <span style="width:26px; height:26px; border:3px solid #cbeeff; border-top-color:#0088b0; border-radius:50%; animation:jt-spin .9s linear infinite; flex:none"></span>
+                      <div>
+                        <div style="font-size:17px; font-weight:600">Finding the place in this video</div>
+                        <div style="font-size:13.5px; color:#7d7979; margin-top:2px">Reading caption, on-screen text and the pinned comment</div>
+                      </div>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:9px">
+                      <sc-for list="{{ parseSteps }}" as="s" hint-placeholder-count="3">
+                        <div style="display:flex; gap:10px; align-items:center; font-size:14.5px; color:#605d5d"><i class="{{ s.icon }}" style="{{ s.iconStyle }}"></i>{{ s.label }}</div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ shareDupe }}">
+                  <div style="padding:2px 0 4px">
+                    <div style="background:#fff1f4; border-left:3px solid #d6006c; padding:13px 14px; margin-bottom:16px">
+                      <div style="font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#aa0b56; margin-bottom:5px">Already saved</div>
+                      <div style="font-size:15px; line-height:1.45; color:#444141">Yev pinned <strong style="font-weight:600">Kikanbo</strong> on Aug 12 from a different video. Same address, so this won't make a second pin.</div>
+                    </div>
+                    <div style="display:flex; gap:12px; align-items:center; margin-bottom:18px">
+                      <span style="width:11px; height:11px; border-radius:50%; background:oklch(0.55 0.16 30); flex:none"></span>
+                      <div style="flex:1">
+                        <div style="font-size:17px; font-weight:600">Kikanbo 鬼金棒</div>
+                        <div style="font-size:13.5px; color:#7d7979">Ramen · 2-10-9 Kajicho, Chiyoda</div>
+                      </div>
+                    </div>
+                    <div style="display:flex; gap:8px">
+                      <button onClick="{{ goPin }}" style="flex:1; min-height:46px; border:none; border-radius:2px; background:#0088b0; color:#fff; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer" style-hover="background:#1186ac">Add this clip to the pin</button>
+                      <button onClick="{{ cycleShare }}" style="min-height:46px; padding:0 14px; border:1px solid #d7d3d3; border-radius:2px; background:transparent; font-family:inherit; font-size:15px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7">Keep both</button>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ shareSaved }}">
+                  <div style="padding:2px 0 4px">
+                    <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px">
+                      <span style="width:34px; height:34px; border-radius:50%; background:#0088b0; color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; flex:none"><i class="ph-duotone ph-check"></i></span>
+                      <div>
+                        <div style="font-size:17px; font-weight:600">Pinned to Tokyo</div>
+                        <div style="font-size:13.5px; color:#7d7979">2 clips now attached · Yev notified</div>
+                      </div>
+                    </div>
+                    <div style="display:flex; gap:7px; flex-wrap:wrap; margin-bottom:18px">
+                      <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="7">
+                        <button onClick="{{ c.pick }}" style="{{ c.style }}"><span style="{{ c.dot }}"></span>{{ c.label }}</button>
+                      </sc-for>
+                    </div>
+                    <button onClick="{{ goPin }}" style="width:100%; min-height:46px; border:none; border-radius:2px; background:#0088b0; color:#fff; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer" style-hover="background:#1186ac">View the pin</button>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ INBOX ══════════ -->
+          <sc-if value="{{ isInbox }}">
+            <div style="padding:14px 20px 28px">
+              <h2 style="margin:0; font-size:31px; font-weight:600; letter-spacing:-0.01em">Inbox</h2>
+              <div style="height:1px; background:#201e1d; margin:14px 0 0"></div>
+              <div style="height:3px; background:#201e1d; margin:2px 0 18px"></div>
+
+              <div style="display:flex; align-items:center; gap:10px; background:#e9f8ff; padding:12px 14px; margin-bottom:24px">
+                <i class="ph-duotone ph-envelope-simple" style="font-size:20px; color:#006786"></i>
+                <div style="flex:1; min-width:0">
+                  <div style="font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#7d7979">Forward bookings to</div>
+                  <div style="font-size:16px; font-weight:600; color:#004961">japan@trip.mail</div>
+                </div>
+                <button style="border:none; background:#0088b0; color:#fff; font-family:inherit; font-size:13.5px; padding:9px 12px; border-radius:2px; cursor:pointer; min-height:38px" style-hover="background:#1186ac">Copy</button>
+              </div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:12px">Waiting on you · 3</div>
+              <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px">
+                <sc-for list="{{ inbox }}" as="i" hint-placeholder-count="3">
+                  <div style="background:#fff; box-shadow:0 1px 2px rgba(45,43,43,.14); padding:14px 15px">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:7px">
+                      <i class="{{ i.icon }}" style="font-size:18px; color:#7d7979"></i>
+                      <span style="font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#7d7979">{{ i.kind }}</span>
+                      <span style="{{ i.confStyle }}">{{ i.conf }}</span>
+                    </div>
+                    <div style="font-size:17px; font-weight:600; line-height:1.25">{{ i.title }}</div>
+                    <div style="font-size:13.5px; color:#7d7979; margin:3px 0 12px; line-height:1.4">{{ i.sub }}</div>
+                    <div style="display:flex; gap:8px">
+                      <button onClick="{{ goEvent }}" style="flex:1; min-height:42px; border:none; border-radius:2px; background:#0088b0; color:#fff; font-family:inherit; font-size:14.5px; font-weight:600; cursor:pointer" style-hover="background:#1186ac">Add to Day {{ i.day }}</button>
+                      <button style="min-height:42px; padding:0 14px; border:1px solid #d7d3d3; border-radius:2px; background:transparent; font-family:inherit; font-size:14.5px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7">Edit</button>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <button onClick="{{ goAddPin }}" style="width:100%; min-height:48px; border:1px dashed #bab6b6; border-radius:2px; background:transparent; font-family:inherit; font-size:15px; cursor:pointer; color:#201e1d; display:flex; align-items:center; justify-content:center; gap:8px" style-hover="background:#eae7e7"><i class="ph-duotone ph-plus"></i>Add a booking by hand</button>
+              <div style="font-size:13px; color:#7d7979; line-height:1.5; margin-top:12px">Tabelog doesn't publish an API, so restaurant reservations come in by forwarding the confirmation mail — or you add them here with the paid status yourself.</div>
+            </div>
+          </sc-if>
+
+          <!-- ══════════ ADD PIN ══════════ -->
+          <sc-if value="{{ isAddPin }}">
+            <div style="padding:12px 20px 28px">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px">
+                <button onClick="{{ back }}" style="width:40px; height:40px; border-radius:50%; border:none; background:transparent; font-size:19px; cursor:pointer; color:#201e1d" style-hover="background:#eae7e7"><i class="ph-duotone ph-x"></i></button>
+                <h2 style="margin:0; font-size:22px; font-weight:600">New pin</h2>
+                <button style="margin-left:auto; border:none; background:#0088b0; color:#fff; font-family:inherit; font-size:14.5px; font-weight:600; padding:10px 16px; border-radius:2px; cursor:pointer; min-height:40px" style-hover="background:#1186ac">Save</button>
+              </div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:6px">Place</div>
+              <div style="border-bottom:2px solid #201e1d; padding:8px 0 10px; font-size:20px; font-weight:600; margin-bottom:22px">Kissa Yoshinoya</div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:6px">Address</div>
+              <div style="border-bottom:1px solid #d7d3d3; padding:8px 0 10px; font-size:16px; color:#605d5d; margin-bottom:8px">2-6-14 Sumiyoshi, Naniwa-ku, Osaka</div>
+              <div style="display:flex; gap:8px; align-items:center; font-size:13px; color:#006786; margin-bottom:24px"><i class="ph-duotone ph-map-pin"></i>Matched on Google Maps · 4.4 ★</div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:10px">Category</div>
+              <div style="display:flex; gap:7px; flex-wrap:wrap; margin-bottom:24px">
+                <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="7">
+                  <button onClick="{{ c.pick }}" style="{{ c.style }}"><span style="{{ c.dot }}"></span>{{ c.label }}</button>
+                </sc-for>
+              </div>
+
+              <div style="font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7d7979; margin-bottom:10px">Note</div>
+              <div style="border:1px solid #d7d3d3; padding:12px; min-height:86px; font-size:15.5px; color:#9b9797; margin-bottom:24px">Yev's coworker said the pudding is the thing — go before 11.</div>
+
+              <div style="display:flex; align-items:center; gap:12px; border-top:1px solid #e2dfdf; padding-top:16px">
+                <span style="width:30px; height:30px; border-radius:50%; background:#006786; color:#fff; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center">B</span>
+                <div style="flex:1; font-size:15px">Visible to Yev</div>
+                <span style="width:44px; height:26px; border-radius:13px; background:#0088b0; position:relative"><span style="position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff"></span></span>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+
+        <div style="flex:none; border-top:1px solid #e2dfdf; background:#f3f2f2; display:flex; padding:6px 4px 2px">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+            <button onClick="{{ t.go }}" style="{{ t.style }}">
+              <i class="{{ t.icon }}" style="font-size:23px; line-height:1"></i>
+              <span style="font-size:11.5px; letter-spacing:.02em">{{ t.label }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="flex:none; height:22px; display:flex; align-items:center; justify-content:center; background:#f3f2f2">
+          <div style="width:108px; height:4px; border-radius:2px; background:#201e1d; opacity:.35"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;offline&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prototype state&quot;},&quot;transitBlocks&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Day calendar&quot;}}">
+const CAT = {
+  ramen:       { label: 'Ramen',       c: 'oklch(0.55 0.16 30)'  },
+  sushi:       { label: 'Sushi',       c: 'oklch(0.55 0.17 350)' },
+  matcha:      { label: 'Matcha',      c: 'oklch(0.55 0.14 140)' },
+  food:        { label: 'Other food',  c: 'oklch(0.55 0.13 75)'  },
+  shopping:    { label: 'Shopping',    c: 'oklch(0.55 0.16 305)' },
+  hotel:       { label: 'Hotel',       c: 'oklch(0.55 0.14 250)' },
+  sightseeing: { label: 'Sightseeing', c: 'oklch(0.55 0.11 195)' },
+  transit:     { label: 'Transit',     c: '#7d7979' },
+};
+
+const DAY6 = [
+  { id: 'bkfst', s: 7.5,  e: 8.75,  cat: 'hotel',       title: 'Kaiseki breakfast, in-room', sub: 'Gora Kadan · checkout 11:00', tag: 'Prepaid' },
+  { id: 't1',    s: 8.75, e: 9.4,   cat: 'transit',     title: 'Bus to Togendai', sub: 'Hakone Tozan · 35 min', tag: '' },
+  { id: 'ashi',  s: 9.4,  e: 10.75, cat: 'sightseeing', title: 'Lake Ashi cruise + floating torii', sub: 'Hakone Free Pass covers it · 6 min walk', tag: 'Prepaid' },
+  { id: 't2',    s: 11.0, e: 11.6,  cat: 'transit',     title: 'Back to Gora, grab bags → Odawara', sub: 'Leave 11:35 · 25 min', tag: '' },
+  { id: 'shink', s: 12.1, e: 14.2,  cat: 'transit',     title: 'HIKARI 641 → Kyoto', sub: 'Car 10, seats 12-D/E · 12:07', tag: 'Prepaid' },
+  { id: 'ckin',  s: 14.5, e: 15.25, cat: 'hotel',       title: 'Check in, Akari Kyoto Gion', sub: '46-7 Bishamon-cho · drop bags', tag: 'Prepaid' },
+  { id: 't3',    s: 15.25, e: 16.0, cat: 'transit',     title: 'Kintetsu to Ogura', sub: '40 min + 8 min walk', tag: '' },
+  { id: 'nint',  s: 16.0, e: 19.5,  cat: 'sightseeing', title: 'Nintendo Museum, Uji', sub: '4:00pm timed entry · ¥3,300 pp', tag: 'Prepaid' },
+  { id: 'dinner',s: 20.0, e: 21.25, cat: 'food',        title: 'Dinner back in Kyoto', sub: 'Pontocho or near the station', tag: 'Pay there' },
+];
+
+const DAYS = [
+  ['Thu','25','Tokyo','Day 1 · Fri 9/25'], ['Fri','26','Tokyo','Day 2 · Sat 9/26'], ['Sat','27','Tokyo','Day 3 · Sun 9/27'],
+  ['Sun','28','Tokyo','Day 4 · Mon 9/28'], ['Mon','29','Hakone','Day 5 · Tue 9/29'], ['Tue','30','Hakone → Kyoto','Day 6 · Wed 9/30'],
+  ['Wed','1','Kyoto','Day 7 · Thu 10/1'], ['Thu','2','Kyoto','Day 8 · Fri 10/2'], ['Fri','3','Kyoto → Osaka','Day 9 · Sat 10/3'],
+  ['Sat','4','Osaka','Day 10 · Sun 10/4'], ['Sun','5','Osaka','Day 11 · Mon 10/5'], ['Mon','6','Osaka','Day 12 · Tue 10/6'],
+];
+const DAY_COST = ['$335','$566','$498','$426','$1,276','$502','$450','$536','$496','$969','$304','$61'];
+
+const SAVED = [
+  { id: 'p1', name: 'Kikanbo', cat: 'ramen',       x: 118, y: 214, sub: 'Ramen · queue 20–40 min', who: 'Y', dist: '0.4 km' },
+  { id: 'p2', name: 'Kurasu Kyoto', cat: 'matcha', x: 238, y: 300, sub: 'Coffee · opens 8:00',      who: 'B', dist: '0.9 km' },
+  { id: 'p3', name: 'Nishiki Market', cat: 'food', x: 300, y: 420, sub: 'Food street',              who: 'B', dist: '1.4 km' },
+  { id: 'p4', name: 'Komehyo Kyoto', cat: 'shopping', x: 86, y: 430, sub: 'Resale',                 who: 'Y', dist: '1.8 km' },
+  { id: 'p5', name: 'Sushi Matsumoto', cat: 'sushi', x: 340, y: 560, sub: 'Omakase',                who: 'B', dist: '2.1 km' },
+  { id: 'p6', name: 'Ippodo Tea', cat: 'matcha',   x: 152, y: 612, sub: 'Tearoom',                  who: 'Y', dist: '2.4 km' },
+];
+const STOPS = [
+  { n: 1, x: 96,  y: 650 }, { n: 2, x: 152, y: 520 }, { n: 3, x: 182, y: 392 }, { n: 4, x: 252, y: 300 }, { n: 5, x: 318, y: 196 },
+];
+
+const SITUATIONS = [
+  ['Restaurant & ordering', 'ph-duotone ph-bowl-food', 'menus, allergies, the bill', 18],
+  ['Train & directions', 'ph-duotone ph-train-simple', 'platforms, transfers, lost', 14],
+  ['Shopping & tax-free', 'ph-duotone ph-shopping-bag', 'sizes, passport, wrapping', 11],
+  ['Ryokan & onsen', 'ph-duotone ph-bathtub', 'etiquette, tattoos, futon', 9],
+  ['Emergencies & pharmacy', 'ph-duotone ph-first-aid-kit', 'symptoms, hospital, help', 10],
+  ['Politeness basics', 'ph-duotone ph-hand-waving', 'greetings, thanks, sorry', 8],
+  ['Numbers & money', 'ph-duotone ph-coins', 'counting, prices, cards', 7],
+  ['Allergies & diet', 'ph-duotone ph-leaf', 'no dairy, no pork, vegetarian', 7],
+];
+
+const PHRASES = [
+  { en: 'Table for two, please.', romaji: 'Futari desu.', jp: '二人です。' },
+  { en: 'What do you recommend?', romaji: 'Osusume wa nan desu ka?', jp: 'おすすめは何ですか？' },
+  { en: 'Does this contain dairy?', romaji: 'Kore ni nyuuseihin wa haitte imasu ka?', jp: 'これに乳製品は入っていますか？' },
+  { en: 'Can I pay by card?', romaji: 'Kaado de haraemasu ka?', jp: 'カードで払えますか？' },
+  { en: 'That was delicious, thank you.', romaji: 'Gochisousama deshita.', jp: 'ごちそうさまでした。' },
+  { en: 'The bill, please.', romaji: 'Okaikei onegaishimasu.', jp: 'お会計お願いします。' },
+];
+const PRACTICE_WORDS = ['Eigo no', 'menyuu', 'wa arimasu', 'ka?'];
+
+const SCREENS = [
+  ['now', 'Now'], ['map', 'Map + pins'], ['days', 'Day calendar'], ['event', 'Booking detail'],
+  ['money', 'Money'], ['convert', 'Currency converter'], ['phrases', 'Phrasebook'], ['phrase', 'Phrase practice'],
+  ['pin', 'Pin detail'], ['share', 'Share to app'], ['inbox', 'Forwarded bookings'], ['addpin', 'Add pin by hand'],
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: 'now', dayIdx: 5, snoozed: false, offline: false,
+    cats: {}, amount: '3300', dir: 'jpy', playing: false, slow: false, word: -1,
+    shareStep: 0, pickedCat: 'matcha',
+  };
+
+  componentWillUnmount() { clearInterval(this._t); }
+
+  go = (s) => () => this.setState({ screen: s });
+
+  togglePlay = () => {
+    if (this.state.playing) { clearInterval(this._t); this.setState({ playing: false, word: -1 }); return; }
+    this.setState({ playing: true, word: 0 });
+    const step = this.state.slow ? 900 : 460;
+    clearInterval(this._t);
+    this._t = setInterval(() => {
+      this.setState(s => {
+        const n = s.word + 1;
+        if (n >= PRACTICE_WORDS.length) { clearInterval(this._t); return { playing: false, word: -1 }; }
+        return { word: n };
+      });
+    }, step);
+  };
+
+  press = (k) => () => {
+    this.setState(s => {
+      if (k === '⌫') return { amount: s.amount.slice(0, -1) || '0' };
+      if (k === '.') return { amount: s.amount.includes('.') ? s.amount : s.amount + '.' };
+      const next = s.amount === '0' ? k : s.amount + k;
+      return { amount: next.slice(0, 9) };
+    });
+  };
+
+  fmt = (n, d) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  renderVals() {
+    const st = this.state;
+    const S = st.screen;
+    const offline = this.props.offline ?? st.offline;
+    const showTransit = this.props.transitBlocks ?? true;
+    const tabOf = { now: 'now', map: 'map', pin: 'map', addpin: 'map', share: 'map', days: 'days', event: 'days', inbox: 'days', money: 'money', convert: 'money', phrases: 'phrases', phrase: 'phrases' };
+    const tab = tabOf[S];
+
+    const dot = (cat, size) => `display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${CAT[cat].c};flex:none`;
+
+    // ── nav ──────────────────────────────────────────────
+    const tabs = [
+      ['now', 'Now', 'ph-duotone ph-compass'], ['map', 'Map', 'ph-duotone ph-map-trifold'],
+      ['days', 'Days', 'ph-duotone ph-calendar-blank'], ['money', 'Money', 'ph-duotone ph-wallet'],
+      ['phrases', 'Phrases', 'ph-duotone ph-translate'],
+    ].map(([k, label, icon]) => ({
+      go: this.go(k), label, icon,
+      style: `flex:1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;font-family:inherit;padding:6px 0;color:${tab === k ? '#006786' : '#7d7979'};font-weight:${tab === k ? 600 : 400}`,
+    }));
+
+    const index = SCREENS.map(([k, label], i) => ({
+      n: String(i + 1).padStart(2, '0'), label, go: this.go(k),
+      style: `display:flex;align-items:center;gap:10px;text-align:left;width:100%;padding:7px 9px;border:none;background:${S === k ? '#cbeeff' : 'transparent'};font-family:inherit;font-size:14.5px;cursor:pointer;color:#201e1d;font-weight:${S === k ? 600 : 400};border-radius:2px`,
+    }));
+
+    const legend = Object.keys(CAT).filter(k => k !== 'transit').map(k => ({ label: CAT[k].label, dot: dot(k, 10) }));
+
+    // ── now ──────────────────────────────────────────────
+    const leaveIn = st.snoozed ? 33 : 23;
+    const upNext = [
+      { id: 'shink', time: '12:07', title: 'HIKARI 641 → Kyoto', sub: 'Car 10 · seats 12-D, 12-E', tag: 'Prepaid' },
+      { id: 'ckin', time: '14:30', title: 'Check in, Akari Kyoto Gion', sub: '18 min from Kyoto Station', tag: 'Prepaid' },
+      { id: 'nint', time: '16:00', title: 'Nintendo Museum, Uji', sub: 'Timed entry · don\u2019t be late', tag: 'Prepaid' },
+    ].map(e => {
+      const ev = DAY6.find(d => d.id === e.id);
+      return {
+        ...e, open: this.go('event'),
+        rule: `width:3px;align-self:stretch;background:${CAT[ev.cat].c};flex:none`,
+        tagStyle: 'font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;background:#cbeeff;color:#004961;padding:3px 7px;white-space:nowrap;align-self:flex-start;margin-top:2px',
+      };
+    });
+
+    const nearby = SAVED.slice(0, 3).map(p => ({
+      ...p, open: this.go('pin'), dot: dot(p.cat, 11),
+      avatar: `width:24px;height:24px;border-radius:50%;background:${p.who === 'B' ? '#006786' : '#aa0b56'};color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none`,
+    }));
+
+    // ── map ──────────────────────────────────────────────
+    const active = k => !st.cats[k];
+    const filters = [{ k: 'all', label: 'All 47' }].concat(Object.keys(CAT).filter(k => k !== 'transit').map(k => ({ k, label: CAT[k].label }))).map(f => ({
+      label: f.label, toggle: f.k === 'all' ? () => this.setState({ cats: {} }) : () => this.setState(s => ({ cats: { ...s.cats, [f.k]: !s.cats[f.k] } })),
+      dot: f.k === 'all' ? 'display:none' : dot(f.k, 8),
+      style: `display:flex;align-items:center;gap:6px;white-space:nowrap;border:1px solid ${f.k !== 'all' && !active(f.k) ? '#d7d3d3' : '#201e1d'};background:${f.k !== 'all' && !active(f.k) ? 'transparent' : '#fff'};color:${f.k !== 'all' && !active(f.k) ? '#9b9797' : '#201e1d'};font-family:inherit;font-size:13px;padding:7px 11px;border-radius:2px;cursor:pointer;min-height:34px;box-shadow:0 1px 2px rgba(45,43,43,.14)`,
+    }));
+
+    const savedPins = SAVED.filter(p => active(p.cat)).map(p => ({
+      ...p, open: this.go('pin'),
+      style: `position:absolute;left:${p.x}px;top:${p.y}px;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:${CAT[p.cat].c};border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.32);cursor:pointer;padding:0`,
+    }));
+    const stopPins = STOPS.map(p => ({
+      ...p, open: this.go('event'),
+      style: `position:absolute;left:${p.x}px;top:${p.y}px;transform:translate(-50%,-100%);width:30px;height:30px;border-radius:50% 50% 2px 50%;background:#0088b0;color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.34);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0`,
+    }));
+
+    // ── days ─────────────────────────────────────────────
+    const d = DAYS[st.dayIdx];
+    const dayStrip = DAYS.map((x, i) => ({
+      dow: x[0], dom: x[1], pick: () => this.setState({ dayIdx: i }),
+      style: `flex:none;width:46px;min-height:52px;border:none;border-radius:2px;background:${i === st.dayIdx ? '#201e1d' : 'transparent'};color:${i === st.dayIdx ? '#f3f2f2' : '#605d5d'};font-family:inherit;cursor:pointer;padding:6px 0`,
+    }));
+
+    const HR0 = 7, PX = 60;
+    const hours = [];
+    for (let h = HR0; h <= 23; h++) {
+      const l = h === 12 ? 'noon' : (h > 12 ? (h - 12) + 'pm' : h + 'am');
+      hours.push({ label: l, style: `position:absolute;left:-56px;top:${(h - HR0) * PX - 8}px;width:46px;text-align:right;font-size:11.5px;color:#9b9797` });
+    }
+
+    const src = st.dayIdx === 5 ? DAY6 : DAY6;
+    const blocks = src.filter(e => showTransit || e.cat !== 'transit').map(e => {
+      const top = (e.s - HR0) * PX, h = (e.e - e.s) * PX - 4;
+      const isT = e.cat === 'transit';
+      const tight = h < 54;
+      return {
+        title: e.title, sub: e.sub, tag: e.tag, open: this.go('event'),
+        style: `position:absolute;left:0;right:0;top:${top}px;height:${h}px;display:flex;flex-direction:column;justify-content:center;gap:1px;text-align:left;padding:6px 10px 6px 11px;border:none;border-left:3px solid ${CAT[e.cat].c};background:${isT ? 'repeating-linear-gradient(135deg,#eae7e7 0 5px,#f1efef 5px 10px)' : '#ffffff'};box-shadow:${isT ? 'none' : '0 1px 2px rgba(45,43,43,.14)'};font-family:inherit;cursor:pointer;overflow:hidden;border-radius:2px`,
+        titleStyle: `font-size:${tight ? 13.5 : 15}px;font-weight:600;line-height:1.2;color:${isT ? '#605d5d' : '#201e1d'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`,
+        subStyle: `font-size:12.5px;color:#7d7979;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:${tight ? 'none' : 'block'}`,
+        tagStyle: e.tag ? `align-self:flex-start;margin-top:4px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;background:${e.tag === 'Prepaid' ? '#cbeeff' : '#ffdee6'};color:${e.tag === 'Prepaid' ? '#004961' : '#790e3d'};display:${tight ? 'none' : 'inline-block'}` : 'display:none',
+      };
+    });
+
+    const nowLineStyle = `position:absolute;left:0;right:0;top:${(11.2 - HR0) * PX}px;height:2px;background:#d6006c;z-index:4`;
+
+    // ── money ────────────────────────────────────────────
+    const todayCosts = [
+      ['Akari Kyoto Gion, night 1 of 3', 'hotel', '$180.00', '¥27,000', 'Prepaid'],
+      ['Shinkansen HIKARI 641 ×2', 'transit', '$202.00', '¥30,300', 'Prepaid'],
+      ['Nintendo Museum ×2', 'sightseeing', '$44.00', '¥6,600', 'Prepaid'],
+      ['Kintetsu round trip to Uji ×2', 'transit', '$9.60', '¥1,440', 'Pay there'],
+      ['Dinner near Kyoto (est.)', 'food', '$66.67', '¥10,000', 'Pay there'],
+    ].map(([item, cat, usd, jpy, tag]) => ({
+      item, usd, jpy, tag, dot: dot(cat, 10),
+      tagStyle: `display:inline-block;margin-top:4px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;background:${tag === 'Prepaid' ? '#cbeeff' : '#ffdee6'};color:${tag === 'Prepaid' ? '#004961' : '#790e3d'}`,
+    }));
+
+    const decisions = [
+      { name: 'Higashiyama licensed guide', usd: '$183', sub: 'Day 7 · half day · book 1 week out' },
+      { name: 'Nishiki Market food walk', usd: '$190', sub: 'Day 8 · $95 each · small group' },
+      { name: 'Dotonbori food walk', usd: '$230', sub: 'Day 9 · $115 each · fills up fast' },
+    ];
+
+    // ── converter ────────────────────────────────────────
+    const raw = parseFloat(st.amount) || 0;
+    const jpyFirst = st.dir === 'jpy';
+    const conv = jpyFirst ? raw / 150 : raw * 150;
+    const keys = ['1','2','3','4','5','6','7','8','9','.','0','⌫'].map(k => ({
+      label: k, press: this.press(k),
+      style: 'min-height:58px;border:none;border-radius:2px;background:#f3f2f2;font-family:inherit;font-size:23px;font-weight:600;color:#201e1d;cursor:pointer;box-shadow:0 1px 2px rgba(45,43,43,.14)',
+    }));
+    const quickAmounts = ['500','1000','3300','10000'].map(a => ({
+      label: (jpyFirst ? '¥' : '$') + Number(a).toLocaleString(), pick: () => this.setState({ amount: a }),
+    }));
+
+    // ── phrases ──────────────────────────────────────────
+    const situations = SITUATIONS.map(([label, icon, sub, count]) => ({ label, icon, sub, count, open: this.go('phrase') }));
+    const words = PRACTICE_WORDS.map((t, i) => ({
+      t, style: `color:${st.word === i ? '#d6006c' : '#201e1d'};transition:color .12s`,
+    }));
+    const waveBars = Array.from({ length: 26 }, (_, i) => ({
+      style: `flex:1;background:${st.playing ? '#0088b0' : '#d7d3d3'};height:${20 + 14 * Math.abs(Math.sin(i * 1.7))}px;border-radius:1px;transform-origin:center;animation:${st.playing ? `jt-bar ${st.slow ? 1.4 : .7}s ease-in-out ${i * 0.045}s infinite` : 'none'}`,
+    }));
+    const phraseList = PHRASES.map(p => ({ ...p, play: this.togglePlay }));
+
+    // ── share ────────────────────────────────────────────
+    const parseSteps = [
+      ['Caption read', 'ph-duotone ph-check-circle', '#0088b0'],
+      ['Location tag: Kanda, Chiyoda', 'ph-duotone ph-check-circle', '#0088b0'],
+      ['Matching against your 47 pins…', 'ph-duotone ph-circle-dashed', '#9b9797'],
+    ].map(([label, icon, c]) => ({ label, icon, iconStyle: `font-size:18px;color:${c}` }));
+
+    const catChips = Object.keys(CAT).filter(k => k !== 'transit').map(k => ({
+      label: CAT[k].label, pick: () => this.setState({ pickedCat: k }), dot: dot(k, 8),
+      style: `display:flex;align-items:center;gap:6px;border:1px solid ${st.pickedCat === k ? '#201e1d' : '#d7d3d3'};background:${st.pickedCat === k ? '#eae7e7' : 'transparent'};font-family:inherit;font-size:13.5px;padding:8px 12px;border-radius:2px;cursor:pointer;min-height:38px;color:#201e1d;white-space:nowrap;font-weight:${st.pickedCat === k ? 600 : 400}`,
+    }));
+
+    const inbox = [
+      { kind: 'Flight', icon: 'ph-duotone ph-airplane-takeoff', conf: 'Confident', title: 'JAL 8 · KIX → SFO', sub: 'Tue Oct 6, 17:45 · 2 seats, 41H/41J · conf. WQ8T2M', day: '12' },
+      { kind: 'Restaurant', icon: 'ph-duotone ph-fork-knife', conf: 'Check date', title: 'Tabelog: Torisoba Zagin', sub: 'Confirmation in Japanese · reads Oct 5, 19:00, party of 2 · pay at the counter', day: '11' },
+      { kind: 'Train', icon: 'ph-duotone ph-train-regional', conf: 'Confident', title: 'Nankai Rapi:t · Namba → KIX', sub: 'Tue Oct 6, 14:05 · car 4, seats 3A/3B · ¥1,490 each, paid', day: '12' },
+    ].map(i => ({
+      ...i, goEvent: null,
+      confStyle: `margin-left:auto;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;background:${i.conf === 'Confident' ? '#cbeeff' : '#ffdee6'};color:${i.conf === 'Confident' ? '#004961' : '#790e3d'}`,
+    }));
+
+    const pinFacts = [
+      ['ph-duotone ph-map-pin', '2-10-9 Kajicho, Chiyoda · 4 min from Kanda Stn'],
+      ['ph-duotone ph-clock', 'Open 11:00–21:30 · closed Sundays'],
+      ['ph-duotone ph-calendar-check', 'Fits Day 3 — you\u2019re in Ginza that evening, 12 min away'],
+      ['ph-duotone ph-coins', '¥1,100 · cash and IC only'],
+    ].map(([icon, v]) => ({ icon, v }));
+
+    return {
+      // screen flags
+      isNow: S === 'now', isMap: S === 'map', isDays: S === 'days', isEvent: S === 'event',
+      isMoney: S === 'money', isConvert: S === 'convert', isPhrases: S === 'phrases', isPhrase: S === 'phrase',
+      isPin: S === 'pin', isShare: S === 'share', isInbox: S === 'inbox', isAddPin: S === 'addpin',
+      offline, online: !offline,
+      // nav
+      tabs, index, legend,
+      goNow: this.go('now'), goMap: this.go('map'), goDays: this.go('days'), goMoney: this.go('money'),
+      goConvert: this.go('convert'), goPhrases: this.go('phrases'), goPin: this.go('pin'),
+      goEvent: this.go('event'), goAddPin: this.go('addpin'), back: this.go(tab === 'map' ? 'map' : 'days'),
+      toggleOffline: () => this.setState(s => ({ offline: !s.offline })),
+      // now
+      leaveIn, upNext, nearby,
+      snooze: () => this.setState({ snoozed: true }), snoozeLabel: st.snoozed ? 'Snoozed' : 'Snooze 10',
+      leaveBarStyle: `height:100%;width:${st.snoozed ? 42 : 68}%;background:#d6006c`,
+      // map
+      filters, savedPins, stopPins,
+      // days
+      dayStrip, hours, blocks, nowLineStyle,
+      dayHeading: d[3], dayCity: d[2], dayCost: DAY_COST[st.dayIdx], dayCostSub: 'both of you',
+      // event
+      eventFields: [
+        { k: 'Confirmation', v: 'SMS-4471902' }, { k: 'Car / seats', v: '10 · 12-D, 12-E' },
+        { k: 'Paid', v: '$202.00' }, { k: 'Per person', v: '$101.00' },
+        { k: 'Cancel by', v: 'Sept 30, 12:00' }, { k: 'Reserved', v: 'Aug 14' },
+      ],
+      // money
+      todayCosts, decisions,
+      // converter
+      dirLabel: jpyFirst ? '¥ → $' : '$ → ¥',
+      flipDir: () => this.setState(s => ({ dir: s.dir === 'jpy' ? 'usd' : 'jpy', amount: '100' })),
+      fromLabel: jpyFirst ? 'Japanese yen' : 'US dollars',
+      toLabel: jpyFirst ? 'US dollars' : 'Japanese yen',
+      fromValue: (jpyFirst ? '¥' : '$') + (st.amount === '' ? '0' : Number(st.amount).toLocaleString()),
+      toValue: (jpyFirst ? '$' : '¥') + this.fmt(conv, jpyFirst ? 2 : 0),
+      keys, quickAmounts,
+      // phrases
+      situations, words, waveBars, phraseList,
+      togglePlay: this.togglePlay, playIcon: st.playing ? 'ph-duotone ph-pause' : 'ph-duotone ph-play',
+      toggleSlow: () => this.setState(s => ({ slow: !s.slow })),
+      slowLabel: st.slow ? '0.6×' : '1×',
+      slowStyle: `min-height:44px;min-width:56px;border:1px solid ${st.slow ? '#0088b0' : '#d7d3d3'};background:${st.slow ? '#cbeeff' : 'transparent'};color:${st.slow ? '#004961' : '#201e1d'};font-family:inherit;font-size:15px;font-weight:600;border-radius:2px;cursor:pointer;flex:none`,
+      // share
+      shareParsing: st.shareStep === 0, shareDupe: st.shareStep === 1, shareSaved: st.shareStep === 2,
+      cycleShare: () => this.setState(s => ({ shareStep: (s.shareStep + 1) % 3 })),
+      parseSteps, catChips,
+      // inbox / pin
+      inbox, pinFacts,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
