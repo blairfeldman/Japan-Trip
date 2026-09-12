@@ -3,12 +3,27 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { useAppState, inboxToEvent } from '../store/AppState';
+import { useAppState, inboxToEvent, syncedFrom } from '../store/AppState';
+import { exportAndShare, pickBackup } from '../services/backupFile';
+import { mergeSynced, isEmptySummary, MergeSummary } from '../services/backup';
 import { TRIP, DAYS } from '../data/trip';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { DoubleRule, PrimaryButton, SecondaryButton, SectionLabel } from '../components/ui';
 import { Icon, IconName } from '../components/Icon';
+import { newId } from '../utils/id';
 import { api, backendConfigured } from '../services/api';
+
+/** Plain-English summary of what an import actually changed. */
+function describeMerge(s: MergeSummary): string {
+  if (isEmptySummary(s)) return 'Nothing new in that file — everything in it was already here.';
+  const parts: string[] = [];
+  if (s.newPins) parts.push(`${s.newPins} new pin${s.newPins === 1 ? '' : 's'}`);
+  if (s.mergedPins) parts.push(`${s.mergedPins} duplicate${s.mergedPins === 1 ? '' : 's'} merged`);
+  if (s.newClips) parts.push(`${s.newClips} new clip${s.newClips === 1 ? '' : 's'}`);
+  if (s.newEvents) parts.push(`${s.newEvents} plan item${s.newEvents === 1 ? '' : 's'}`);
+  if (s.newDecisions) parts.push(`${s.newDecisions} budget decision${s.newDecisions === 1 ? '' : 's'}`);
+  return `Merged: ${parts.join(', ')}.`;
+}
 
 export default function InboxScreen() {
   const navigation = useNavigation<any>();
@@ -20,8 +35,39 @@ export default function InboxScreen() {
   const [manualDay, setManualDay] = useState(DAYS[state.dayIdx].day);
   // Which booking has its day-picker open, if any.
   const [reassigning, setReassigning] = useState<string | null>(null);
+  const [busy, setBusy] = useState<null | 'export' | 'import'>(null);
+  const [backupNote, setBackupNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function onExport() {
+    setBusy('export');
+    setBackupNote(null);
+    try {
+      await exportAndShare(syncedFrom(state));
+    } catch (e: any) {
+      setBackupNote({ ok: false, text: e?.message ?? "Couldn't write the backup file." });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function onImport() {
+    setBusy('import');
+    setBackupNote(null);
+    try {
+      const backup = await pickBackup();
+      if (!backup) return; // picker dismissed
+      const { state: merged, summary } = mergeSynced(syncedFrom(state), backup.state);
+      dispatch({ type: 'APPLY_MERGED', merged });
+      setBackupNote({ ok: true, text: describeMerge(summary) });
+    } catch (e: any) {
+      setBackupNote({ ok: false, text: e?.message ?? "Couldn't read that file." });
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const waiting = state.inbox.filter((b) => !b.addedToDay);
+
 
   async function copyEmail() {
     await Clipboard.setStringAsync(TRIP.inboxEmail);
@@ -45,7 +91,7 @@ export default function InboxScreen() {
     dispatch({
       type: 'ADD_MANUAL_EVENT',
       event: {
-        id: `manual-${Date.now()}`,
+        id: newId('manual'),
         day: manualDay,
         start: 12,
         end: 13,
@@ -157,6 +203,31 @@ export default function InboxScreen() {
       <Text style={styles.footnote}>
         Tabelog doesn't publish an API, so restaurant reservations come in by forwarding the confirmation mail — or you add them here with the paid status yourself.
       </Text>
+
+      <DoubleRule style={{ marginTop: 26, marginBottom: 18 }} />
+      <SectionLabel style={{ marginBottom: 10 }}>Backup & merge</SectionLabel>
+      <Text style={styles.backupBlurb}>
+        Saved pins and day plans live on this phone only. Back them up before reinstalling, and swap files with
+        {' '}{TRIP.travelers[1]?.name ?? 'your trip partner'} to combine what you've both saved — importing merges, it
+        never overwrites.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+        <PrimaryButton
+          label={busy === 'export' ? 'Preparing…' : 'Back up / send'}
+          disabled={busy !== null}
+          icon={<Icon name="DownloadSimple" size={17} color="#fff" />}
+          onPress={onExport}
+        />
+        <SecondaryButton label={busy === 'import' ? 'Reading…' : 'Import'} onPress={onImport} />
+      </View>
+      {backupNote && (
+        <Text style={[styles.backupNote, { color: backupNote.ok ? COLORS.accentTintText : COLORS.magentaDeep }]}>
+          {backupNote.text}
+        </Text>
+      )}
+      <Text style={styles.backupCounts}>
+        {state.pins.length} pins · {state.extraEvents.length} added plan {state.extraEvents.length === 1 ? 'item' : 'items'}
+      </Text>
     </ScrollView>
   );
 }
@@ -186,5 +257,8 @@ const styles = StyleSheet.create({
   dayPick: { paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.border, borderRadius: 2, marginRight: 6 },
   dayPickActive: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   dayPickText: { fontSize: 13, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
+  backupBlurb: { fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 19, fontFamily: FONT_SERIF_REGULAR },
+  backupNote: { fontSize: 13, lineHeight: 18, marginTop: 12, fontFamily: FONT_SERIF_REGULAR },
+  backupCounts: { fontSize: 12, color: COLORS.labelFaint, marginTop: 12, fontFamily: FONT_SERIF_REGULAR },
   footnote: { fontSize: 13, color: COLORS.label, lineHeight: 19, marginTop: 12, fontFamily: FONT_SERIF_REGULAR },
 });

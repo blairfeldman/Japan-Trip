@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon';
 import { CategoryDot } from '../components/ui';
 import { Category, SavedPin } from '../types';
 import { geocodeAddress, api } from '../services/api';
+import { newId } from '../utils/id';
 import { TRIP } from '../data/trip';
 
 export default function AddPinScreen() {
@@ -37,7 +38,7 @@ export default function AddPinScreen() {
   function onSave() {
     if (!name.trim() || !matched) return;
     const pin: SavedPin = {
-      id: `p-${Date.now()}`,
+      id: newId('p'),
       name: name.trim(),
       cat,
       address: matched.displayName,

@@ -16,14 +16,22 @@ export interface BudgetItem {
   notes: string;
 }
 
-export type Decisions = Record<string, 'booked' | 'skipped'>;
+/** Timestamped so that merging two phones' backups can take the later choice. */
+export interface Decision {
+  decision: 'booked' | 'skipped';
+  at: string; // ISO
+}
+
+export type Decisions = Record<string, Decision>;
 
 /** Applies "Book it" / "Skip" choices made on undecided items: booked ones
  * become Prepaid, skipped ones drop out of the budget entirely. */
 export function applyDecisions(items: BudgetItem[], decisions: Decisions): BudgetItem[] {
   return items
-    .filter((i) => !(i.tag === 'Undecided' && decisions[i.id] === 'skipped'))
-    .map((i) => (i.tag === 'Undecided' && decisions[i.id] === 'booked' ? { ...i, tag: 'Prepaid' as const } : i));
+    .filter((i) => !(i.tag === 'Undecided' && decisions[i.id]?.decision === 'skipped'))
+    .map((i) =>
+      i.tag === 'Undecided' && decisions[i.id]?.decision === 'booked' ? { ...i, tag: 'Prepaid' as const } : i
+    );
 }
 
 export function dayTotalUsd(day: number, decisions: Decisions = {}): number {

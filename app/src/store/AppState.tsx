@@ -6,6 +6,8 @@ import { TRIP, dayIndexForDate } from '../data/trip';
 import { WeatherNow } from '../services/weather';
 import { LatLng } from '../services/location';
 import { loadPersisted, savePersisted, PersistedState } from '../services/persist';
+import { SyncedState } from '../services/backup';
+import { Decisions } from '../data/budget';
 import { isoDateOnly } from '../utils/time';
 
 interface ConverterState {
@@ -27,7 +29,7 @@ interface State {
   weatherByDay: Record<string, WeatherNow>;
   location: LatLng | null;
   nowOverride: Date | null;
-  decisions: Record<string, 'booked' | 'skipped'>;
+  decisions: Decisions;
   hydrated: boolean;
 }
 
@@ -49,7 +51,8 @@ type Action =
   | { type: 'SET_NOW_OVERRIDE'; date: Date | null }
   | { type: 'SNOOZE_LEAVE_BY'; minutes: number }
   | { type: 'CLEAR_SNOOZE' }
-  | { type: 'DECIDE_ITEM'; id: string; decision: 'booked' | 'skipped' };
+  | { type: 'DECIDE_ITEM'; id: string; decision: 'booked' | 'skipped' }
+  | { type: 'APPLY_MERGED'; merged: SyncedState };
 
 const initialState: State = {
   // Opens on the day the trip is actually on, not the prototype's pinned Day 6.
@@ -76,6 +79,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         ...(action.saved ?? {}),
+        decisions: migrateDecisions(action.saved?.decisions),
         // Seed data is the floor: a saved-but-empty pin list shouldn't wipe
         // the places that shipped with the app.
         pins: action.saved?.pins?.length ? action.saved.pins : state.pins,
@@ -122,10 +126,42 @@ function reducer(state: State, action: Action): State {
     case 'CLEAR_SNOOZE':
       return { ...state, snoozedUntil: null };
     case 'DECIDE_ITEM':
-      return { ...state, decisions: { ...state.decisions, [action.id]: action.decision } };
+      return {
+        ...state,
+        decisions: { ...state.decisions, [action.id]: { decision: action.decision, at: new Date().toISOString() } },
+      };
+    // The caller runs mergeSynced so it can show what changed; this just
+    // commits the result.
+    case 'APPLY_MERGED':
+      return { ...state, ...action.merged };
     default:
       return state;
   }
+}
+
+/** Decisions were once a bare string; they carry a timestamp now so two
+ * phones' backups can be merged. Old saved data is upgraded on load. */
+function migrateDecisions(saved: unknown): Decisions {
+  if (!saved || typeof saved !== 'object') return {};
+  const out: Decisions = {};
+  for (const [id, v] of Object.entries(saved as Record<string, unknown>)) {
+    if (v === 'booked' || v === 'skipped') {
+      out[id] = { decision: v, at: new Date(0).toISOString() };
+    } else if (v && typeof v === 'object' && 'decision' in v) {
+      out[id] = v as Decisions[string];
+    }
+  }
+  return out;
+}
+
+/** The slice that travels between phones — no per-device UI state. */
+export function syncedFrom(state: { pins: SavedPin[]; inbox: InboxBooking[]; extraEvents: ItineraryEvent[]; decisions: Decisions }): SyncedState {
+  return {
+    pins: state.pins,
+    inbox: state.inbox,
+    extraEvents: state.extraEvents,
+    decisions: state.decisions,
+  };
 }
 
 const StateCtx = createContext<{ state: State; dispatch: React.Dispatch<Action> } | null>(null);

@@ -24,6 +24,7 @@ provision on your behalf. Here's the honest breakdown:
 | Add Pin → address matching | ✅ Live — [Nominatim](https://nominatim.org/) geocoding, keyless |
 | Google Maps tiles on the Map tab | ⚠️ Needs **your** Google Maps API key (see below) — blank/gray without one |
 | Saved pins, day plans and Book it / Skip decisions surviving a restart | ✅ Live — persisted to `AsyncStorage`, see `src/services/persist.ts` |
+| Backing those up, and merging two phones' saves | ✅ Live — export/import a JSON file from the Inbox screen, no server needed. See below |
 | Shared pins, forwarded-booking inbox sync | ⚠️ Needs the backend in `server/` deployed and `EXPO_PUBLIC_API_BASE_URL` set — falls back to on-device-only storage without it |
 | "Share to app" from TikTok/Instagram | ⚠️ Real Android Share Sheet target (via `expo-share-intent`) is wired up, but needs a **dev build** (not Expo Go) — see below. The actual video parsing happens server-side; see `server/README.md` |
 | Forwarding real booking emails to `japan@trip.mail` | ⚠️ That address is a placeholder from the design — needs your own domain + inbound-email provider, see `server/README.md` |
@@ -145,6 +146,45 @@ Studio, the Android SDK and a JDK installed on Windows first.
 3. **Rename the bundle identifiers** in `app.json`
    (`com.blairfeldman.japantrip`) if you're publishing this rather than
    just running it on your own device.
+
+## Backup & merging two phones
+
+Everything you save lives on the phone. Two things follow from that:
+
+- **Expo Go data does not carry into a real build.** Expo Go stores it in its
+  own Android sandbox; the standalone app has a different package name and a
+  different sandbox. Nothing saved while previewing in Expo Go survives the
+  switch.
+- **Installing a newer APK over an older one keeps your data** (same package,
+  same keystore — Android treats it as an update). Uninstalling loses it.
+
+So: **Days → envelope icon → Backup & merge**. "Back up / send" writes a JSON
+file and opens the Android share sheet; "Import" reads one back and *merges*
+it in — it never overwrites what's already on the phone.
+
+Merging works because nothing in this app edits existing records: every
+action is either an append (a pin, a clip, a day plan) or a set on one key (a
+budget decision). So combining two phones is a union, and the rules are:
+
+| Data | Rule |
+|---|---|
+| Pins | Union by id, then by being the same place — within 60 m, or the same address within 500 m (geocoders jitter). Duplicates fuse into one pin credited to both, with both clips. |
+| Clips | Union, identified by source link |
+| Day plans | Union by id — items derived from a booking or pin have deterministic ids, so both of you filing the same one collapses to one |
+| Inbox | "Filed onto a day" only ever goes one way, so it wins |
+| Budget decisions | The one true conflict: later timestamp wins |
+| Map filters, converter | Not synced — per-device |
+
+Importing the same file twice changes nothing. The logic is in
+`src/services/backup.ts` (deliberately free of native imports) and is covered
+by `src/services/backup.test.ts`:
+
+```powershell
+npm.cmd test
+```
+
+This is merge-on-swap, not live sync — you each see the other's additions
+when you exchange a file, not the moment they're saved.
 
 ## Notes on the layout
 

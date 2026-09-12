@@ -1,14 +1,15 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { isExpoGo } from '../env';
+import { LatLng, distanceMeters } from '../utils/geo';
 
 export const PROXIMITY_TASK = 'jt-proximity-geofence';
 export const PROXIMITY_RADIUS_M = 150;
 
-export interface LatLng {
-  lat: number;
-  lng: number;
-}
+// Lives in utils/geo so the backup-merge code can measure distance without
+// pulling expo-location (and the native modules behind it) into scope.
+export { distanceMeters };
+export type { LatLng };
 
 export async function requestForegroundPermission(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -25,17 +26,6 @@ export async function getCurrentLocation(): Promise<LatLng | null> {
   if (!has) return null;
   const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   return { lat: pos.coords.latitude, lng: pos.coords.longitude };
-}
-
-/** Great-circle distance in meters. */
-export function distanceMeters(a: LatLng, b: LatLng): number {
-  const R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const la1 = (a.lat * Math.PI) / 180;
-  const la2 = (b.lat * Math.PI) / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
 }
 
 /**
