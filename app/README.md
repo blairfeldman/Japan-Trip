@@ -43,10 +43,17 @@ rather than looked at. Check the golden paths on the phone.
 
 ### Quickest look: Expo Go
 
-```bash
-npm install
-npx expo start      # scan the QR with Expo Go on an Android phone
+```powershell
+npm.cmd install
+npx.cmd expo start   # scan the QR with Expo Go on an Android phone
 ```
+
+> **Why `.cmd`?** PowerShell resolves `npm` to `npm.ps1`, and Windows blocks
+> unsigned `.ps1` scripts by default — you get "running scripts is disabled
+> on this system". Calling `npm.cmd` / `npx.cmd` skips the PowerShell wrapper
+> and is the simplest fix. To drop the suffix permanently, run once:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Every command below
+> uses the `.cmd` form.
 
 Share-to-app, scheduled notifications, and background geofencing are
 switched off under Expo Go (it doesn't ship those native modules — see
@@ -67,7 +74,7 @@ under Expo Go: notifications, share-to-app, and background proximity alerts.
 ### One-time setup
 
 ```powershell
-npm install
+npm.cmd install
 npx.cmd eas-cli login          # free Expo account
 npx.cmd eas-cli init           # writes extra.eas.projectId into app.json — commit that
 ```
