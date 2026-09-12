@@ -60,6 +60,29 @@
           ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ShareExtension",
+                  "bundleIdentifier": "com.blairfeldman.japantrip.share-extension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.blairfeldman.japantrip"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "ff17c833-324a-40aa-b4c5-e0a9015e936c"
+      }
+    },
+    "owner": "blairfeldman"
   }
 }
