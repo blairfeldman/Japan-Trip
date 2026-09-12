@@ -46,7 +46,6 @@ export const COLORS = {
 
 export const FONT_SERIF = 'SourceSerif4_600SemiBold';
 export const FONT_SERIF_REGULAR = 'SourceSerif4_400Regular';
-export const FONT_SERIF_ITALIC = 'SourceSerif4_400Regular_Italic';
 
 export const SPACING = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 };
 

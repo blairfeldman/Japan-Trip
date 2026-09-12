@@ -5,7 +5,7 @@ import { useAppState } from '../store/AppState';
 import { ITINERARY } from '../data/itinerary';
 import { DAYS, TRIP } from '../data/trip';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
-import { Avatar, PrimaryButton, SecondaryButton, Tag } from '../components/ui';
+import { Avatar, PrimaryButton, Tag } from '../components/ui';
 import { PlaceholderBanner } from '../components/PlaceholderBanner';
 import { Icon } from '../components/Icon';
 import { hourToClock } from '../utils/time';
@@ -46,7 +46,7 @@ export default function EventDetailScreen() {
   return (
     <ScrollView style={styles.screen}>
       <PlaceholderBanner caption={event.photoCaption ?? `${CATEGORY[event.cat].label.toLowerCase()} photo`} onBack={() => navigation.goBack()} />
-      <View style={{ padding: 20, paddingTop: 18 }}>
+      <View style={{ padding: 20, paddingTop: 18, paddingBottom: 40 }}>
         <View style={styles.metaRow}>
           <View style={[styles.dot, { backgroundColor: CATEGORY[event.cat].color }]} />
           <Text style={styles.metaLabel}>
@@ -81,18 +81,6 @@ export default function EventDetailScreen() {
           </View>
         )}
 
-        {event.booking?.confirmation && (
-          <View style={styles.ticketCard}>
-            <View style={styles.ticketIcon}>
-              <Icon name="DownloadSimple" size={20} color={COLORS.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.ticketTitle}>e-ticket.pdf</Text>
-              <Text style={styles.ticketSub}>Scan at the gate · saved offline</Text>
-            </View>
-          </View>
-        )}
-
         {event.booking?.reserved === 'Forwarded booking' && (
           <View style={styles.noteRow}>
             <Icon name="EnvelopeSimpleOpen" size={17} color={COLORS.labelFaint} />
@@ -104,15 +92,14 @@ export default function EventDetailScreen() {
 
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 22, marginTop: 4 }}>
           <PrimaryButton
-            label="Open in Maps"
-            icon={<Icon name="MapPinLine" size={17} color="#fff" />}
+            label={event.location ? 'Open in Maps' : 'No location on this one'}
+            icon={event.location ? <Icon name="MapPinLine" size={17} color="#fff" /> : undefined}
             disabled={!event.location}
             onPress={() => {
               if (!event.location) return;
               Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${mapsQuery}`);
             }}
           />
-          <SecondaryButton label="Edit" onPress={() => {}} />
         </View>
 
         <View style={styles.travelersRow}>
@@ -144,10 +131,6 @@ const styles = StyleSheet.create({
   factCell: { width: '50%', paddingVertical: 12, paddingRight: 10, borderTopWidth: 1, borderTopColor: COLORS.hairline },
   factK: { fontSize: 11, letterSpacing: 1.2, color: COLORS.label, marginBottom: 3, fontFamily: FONT_SERIF_REGULAR },
   factV: { fontSize: 16, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
-  ticketCard: { flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: '#fff', padding: 14, marginBottom: 20 },
-  ticketIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.accentTint },
-  ticketTitle: { fontSize: 15, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
-  ticketSub: { fontSize: 12.5, color: COLORS.label, fontFamily: FONT_SERIF_REGULAR },
   noteRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 22 },
   noteText: { flex: 1, fontSize: 13, color: COLORS.label, lineHeight: 19, fontFamily: FONT_SERIF_REGULAR },
   travelersRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 16, borderTopWidth: 1, borderTopColor: COLORS.hairline },

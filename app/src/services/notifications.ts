@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { PROXIMITY_TASK } from './location';
 import { isExpoGo } from '../env';
+import { isoDateOnly } from '../utils/time';
 
 // Loaded lazily: importing expo-notifications at module scope crashes Expo Go
 // on startup, and this module is imported from App.tsx.
@@ -63,12 +64,13 @@ export async function scheduleLeaveByNotification(params: {
   });
 }
 
+/** Keyed on the local date — a UTC key rolled over at 09:00 in Japan, mid-morning. */
+function notifiedKey(pinId: string): string {
+  return `jt.notified.${pinId}.${isoDateOnly(new Date())}`;
+}
+
 async function alreadyNotifiedToday(pinId: string): Promise<boolean> {
-  const key = `jt.notified.${pinId}.${new Date().toISOString().slice(0, 10)}`;
-  const v = await AsyncStorage.getItem(key);
-  if (v) return true;
-  await AsyncStorage.setItem(key, '1');
-  return false;
+  return (await AsyncStorage.getItem(notifiedKey(pinId))) != null;
 }
 
 async function sendProximityNotification(pinId: string, pinName: string) {
@@ -84,6 +86,9 @@ async function sendProximityNotification(pinId: string, pinName: string) {
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1, channelId: 'nearby-pins' },
   });
+  // Marked only once the notification is actually out, so a failed schedule
+  // doesn't silently suppress the alert for the rest of the day.
+  await AsyncStorage.setItem(notifiedKey(pinId), '1');
 }
 
 // Registered at module load so it also runs as a headless JS task when the

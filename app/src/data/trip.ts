@@ -52,3 +52,14 @@ export function cityCoordsFor(city: string): { lat: number; lng: number } {
 export function dayMetaForDate(dateIso: string): DayMeta | undefined {
   return DAYS.find((d) => d.date === dateIso);
 }
+
+/**
+ * Which day of the trip a given date lands on, as a 0-based index into DAYS.
+ * Before the trip that's Day 1 and after it Day 12, so every screen that keys
+ * off "the current day" opens somewhere sensible instead of a hardcoded Day 6.
+ */
+export function dayIndexForDate(dateIso: string): number {
+  const i = DAYS.findIndex((d) => d.date === dateIso);
+  if (i >= 0) return i;
+  return dateIso < DAYS[0].date ? 0 : DAYS.length - 1;
+}

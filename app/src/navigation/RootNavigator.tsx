@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONT_SERIF_REGULAR } from '../theme';
 import { Icon, IconName } from '../components/Icon';
 
@@ -85,13 +86,22 @@ const TAB_ICON: Record<string, IconName> = {
 
 const Tab = createBottomTabNavigator();
 function Tabs() {
+  // Android is edge-to-edge from Expo SDK 54 on, so the gesture bar sits over
+  // the app unless the tab bar reserves room for it.
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: COLORS.link,
         tabBarInactiveTintColor: COLORS.label,
-        tabBarStyle: { backgroundColor: COLORS.bg, borderTopColor: COLORS.hairline, height: 62, paddingTop: 6 },
+        tabBarStyle: {
+          backgroundColor: COLORS.bg,
+          borderTopColor: COLORS.hairline,
+          height: 62 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom,
+        },
         tabBarLabelStyle: { fontSize: 11.5, fontFamily: FONT_SERIF_REGULAR },
         tabBarIcon: ({ color }: { color: string }) => <Icon name={TAB_ICON[route.name]} size={23} color={color} />,
       })}

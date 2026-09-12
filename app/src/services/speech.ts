@@ -44,5 +44,11 @@ export function playPractice(
 }
 
 export function speakShort(text: string, slow = false) {
+  Speech.stop();
   Speech.speak(text, { language: 'ja-JP', rate: slow ? 0.55 : 0.95, pitch: 1.0 });
+}
+
+/** Cuts any in-flight utterance — used when leaving the practice screen. */
+export function stopSpeaking() {
+  Speech.stop();
 }

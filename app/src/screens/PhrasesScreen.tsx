@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PHRASES, SITUATIONS } from '../data/phrases';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { DoubleRule } from '../components/ui';
@@ -8,6 +9,7 @@ import { Icon, IconName } from '../components/Icon';
 
 export default function PhrasesScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -22,7 +24,11 @@ export default function PhrasesScreen() {
   }, [query]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.h2}>Phrases</Text>
       <DoubleRule style={{ marginTop: 14, marginBottom: 18 }} />
 
@@ -36,6 +42,10 @@ export default function PhrasesScreen() {
           style={styles.searchInput}
         />
       </View>
+
+      {filtered.length === 0 && (
+        <Text style={styles.noResults}>No phrases match "{query.trim()}".</Text>
+      )}
 
       {filtered.map((s) => {
         const count = PHRASES.filter((p) => p.situationId === s.id).length;
@@ -67,5 +77,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, borderTopWidth: 1, borderTopColor: COLORS.hairline, paddingVertical: 15, minHeight: 56 },
   rowLabel: { fontSize: 17.5, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   rowSub: { fontSize: 13, color: COLORS.label, marginTop: 2, fontFamily: FONT_SERIF_REGULAR },
+  noResults: { fontSize: 14.5, color: COLORS.label, paddingVertical: 10, fontFamily: FONT_SERIF_REGULAR },
   rowCount: { fontSize: 13, color: COLORS.labelFaint, fontFamily: FONT_SERIF_REGULAR },
 });

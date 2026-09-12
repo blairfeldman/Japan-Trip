@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { Icon } from '../components/Icon';
@@ -11,6 +12,7 @@ import { TRIP } from '../data/trip';
 
 export default function AddPinScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const { dispatch } = useAppState();
 
@@ -18,6 +20,7 @@ export default function AddPinScreen() {
   const [address, setAddress] = useState(route.params?.prefillAddress ?? '');
   const [matched, setMatched] = useState<{ lat: number; lng: number; displayName: string } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [cat, setCat] = useState<Category>('food');
   const [note, setNote] = useState('');
   const [visible, setVisible] = useState(true);
@@ -27,6 +30,7 @@ export default function AddPinScreen() {
     setGeocoding(true);
     const result = await geocodeAddress(address);
     setMatched(result);
+    setNotFound(!result);
     setGeocoding(false);
   }
 
@@ -51,7 +55,12 @@ export default function AddPinScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: 20, paddingTop: 12, paddingBottom: 40 }}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <Icon name="X" size={19} color={COLORS.ink} />
@@ -71,16 +80,25 @@ export default function AddPinScreen() {
         onChangeText={(v) => {
           setAddress(v);
           setMatched(null);
+          setNotFound(false);
         }}
+        returnKeyType="search"
+        onSubmitEditing={onAddressBlur}
         onBlur={onAddressBlur}
         placeholder="Street address"
         placeholderTextColor={COLORS.labelFaint}
         style={styles.addressInput}
       />
       <View style={styles.matchRow}>
-        <Icon name="MapPin" size={15} color={matched ? COLORS.link : COLORS.labelFaint} />
-        <Text style={[styles.matchText, { color: matched ? COLORS.link : COLORS.labelFaint }]}>
-          {geocoding ? 'Matching on the map…' : matched ? `Matched · ${matched.displayName}` : 'Enter an address to match it on the map'}
+        <Icon name="MapPin" size={15} color={matched ? COLORS.link : notFound ? COLORS.magentaDeep : COLORS.labelFaint} />
+        <Text style={[styles.matchText, { color: matched ? COLORS.link : notFound ? COLORS.magentaDeep : COLORS.labelFaint }]}>
+          {geocoding
+            ? 'Matching on the map…'
+            : matched
+            ? `Matched · ${matched.displayName}`
+            : notFound
+            ? "Couldn't find that address — try adding the city, or a nearby landmark."
+            : 'Enter an address to match it on the map'}
         </Text>
       </View>
 
@@ -115,6 +133,7 @@ export default function AddPinScreen() {
         <Switch value={visible} onValueChange={setVisible} trackColor={{ true: COLORS.accent, false: COLORS.border }} />
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

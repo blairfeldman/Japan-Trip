@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useAppState, inboxToEvent } from '../store/AppState';
 import { TRIP, DAYS } from '../data/trip';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { DoubleRule, PrimaryButton, SecondaryButton, SectionLabel } from '../components/ui';
 import { Icon, IconName } from '../components/Icon';
-import { api } from '../services/api';
+import { api, backendConfigured } from '../services/api';
 
 export default function InboxScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
   const [copied, setCopied] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
   const [manualDay, setManualDay] = useState(DAYS[state.dayIdx].day);
+  // Which booking has its day-picker open, if any.
+  const [reassigning, setReassigning] = useState<string | null>(null);
 
   const waiting = state.inbox.filter((b) => !b.addedToDay);
 
@@ -28,11 +32,12 @@ export default function InboxScreen() {
   function addToDay(id: string, day: number) {
     const booking = state.inbox.find((b) => b.id === id);
     if (!booking) return;
-    const event = inboxToEvent(booking, DAYS.find((d) => d.day === day)!.date);
+    const event = inboxToEvent(booking, day);
     dispatch({ type: 'ADD_INBOX_TO_DAY', id, day, event });
     api.addBookingToDay(id, day);
     dispatch({ type: 'SET_DAY', idx: day - 1 });
-    navigation.getParent()?.navigate('DaysTab');
+    setReassigning(null);
+    navigation.navigate('Days');
   }
 
   function submitManual() {
@@ -53,12 +58,21 @@ export default function InboxScreen() {
     setManualTitle('');
     setShowForm(false);
     dispatch({ type: 'SET_DAY', idx: manualDay - 1 });
-    navigation.getParent()?.navigate('DaysTab');
+    navigation.navigate('Days');
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-      <Text style={styles.h2}>Inbox</Text>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 12, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.headRow}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+          <Icon name="ArrowLeft" size={20} color={COLORS.ink} />
+        </Pressable>
+        <Text style={styles.h2}>Inbox</Text>
+      </View>
       <DoubleRule style={{ marginTop: 14, marginBottom: 18 }} />
 
       <View style={styles.emailCard}>
@@ -71,6 +85,12 @@ export default function InboxScreen() {
           <Text style={styles.copyText}>{copied ? 'Copied' : 'Copy'}</Text>
         </Pressable>
       </View>
+      {!backendConfigured && (
+        <Text style={styles.setupNote}>
+          {TRIP.inboxEmail} is a placeholder — forwarding there won't reach anything until the backend in
+          server/ is deployed against a real inbound-email domain. Until then, add bookings by hand below.
+        </Text>
+      )}
 
       <SectionLabel style={{ marginBottom: 12 }}>Waiting on you · {waiting.length}</SectionLabel>
       <View style={{ gap: 12, marginBottom: 24 }}>
@@ -87,8 +107,20 @@ export default function InboxScreen() {
             <Text style={styles.cardSub}>{i.sub}</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
               <PrimaryButton label={`Add to Day ${i.day}`} onPress={() => addToDay(i.id, i.day)} />
-              <SecondaryButton label="Edit" />
+              <SecondaryButton
+                label={reassigning === i.id ? 'Cancel' : 'Other day'}
+                onPress={() => setReassigning(reassigning === i.id ? null : i.id)}
+              />
             </View>
+            {reassigning === i.id && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+                {DAYS.map((d) => (
+                  <Pressable key={d.day} onPress={() => addToDay(i.id, d.day)} style={styles.dayPick}>
+                    <Text style={styles.dayPickText}>Day {d.day}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
           </View>
         ))}
         {waiting.length === 0 && <Text style={styles.emptyText}>Nothing waiting — forwarded bookings will show up here.</Text>}
@@ -131,7 +163,10 @@ export default function InboxScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: { width: 38, height: 38, marginLeft: -9, alignItems: 'center', justifyContent: 'center' },
   h2: { fontSize: 31, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
+  setupNote: { fontSize: 12.5, color: COLORS.label, lineHeight: 18, marginTop: -14, marginBottom: 24, fontFamily: FONT_SERIF_REGULAR },
   emailCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.accentTint, padding: 14, marginBottom: 24 },
   emailLabel: { fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: COLORS.label, fontFamily: FONT_SERIF_REGULAR },
   email: { fontSize: 16, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.accentTintText },

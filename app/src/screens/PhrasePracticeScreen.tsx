@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { phrasesFor, SITUATIONS } from '../data/phrases';
 import { Phrase } from '../types';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { Icon } from '../components/Icon';
-import { playPractice, speakShort, PracticePlayback } from '../services/speech';
+import { playPractice, speakShort, stopSpeaking, PracticePlayback } from '../services/speech';
 
 export default function PhrasePracticeScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const situationId: string = route.params?.situationId;
   const situation = SITUATIONS.find((s) => s.id === situationId);
@@ -24,6 +26,18 @@ export default function PhrasePracticeScreen() {
     setFeatured(phrases[0]);
     return () => playback.current?.stop();
   }, [situationId]);
+
+  useFocusEffect(
+    React.useCallback(
+      () => () => {
+        playback.current?.stop();
+        stopSpeaking();
+        setPlaying(false);
+        setWordIdx(-1);
+      },
+      []
+    )
+  );
 
   const words = featured.romaji.split(' ');
 
@@ -51,7 +65,7 @@ export default function PhrasePracticeScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 32 }}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Icon name="ArrowLeft" size={19} color={COLORS.ink} />
         </Pressable>

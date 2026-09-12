@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { api, backendConfigured } from '../services/api';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
@@ -12,9 +13,20 @@ type Status = 'parsing' | 'no-backend' | 'duplicate' | 'saved' | 'error';
 
 export default function ShareSheetScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const { dispatch } = useAppState();
   const url: string = route.params?.url ?? '';
+
+  /**
+   * PinDetail lives inside the Map tab's stack, not on the root stack this
+   * modal sits on — `navigation.replace('PinDetail')` simply found no such
+   * route. Go through the tab navigator instead.
+   */
+  function openPin(pinId: string) {
+    // Navigating to Tabs pops this modal off the root stack on the way.
+    navigation.navigate('Tabs', { screen: 'MapTab', params: { screen: 'PinDetail', params: { pinId } } });
+  }
 
   const [status, setStatus] = useState<Status>('parsing');
   const [duplicateOf, setDuplicateOf] = useState<SavedPin | null>(null);
@@ -47,8 +59,8 @@ export default function ShareSheetScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.sourceLabel}>shared to Japan Trip</Text>
-      <View style={styles.sheet}>
+      <Text style={[styles.sourceLabel, { top: insets.top + 22 }]}>shared to Japan Trip</Text>
+      <View style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]}>
         <View style={styles.grabber} />
         <View style={styles.headRow}>
           <View style={styles.badge}>
@@ -112,7 +124,7 @@ export default function ShareSheetScreen() {
                 label="Add this clip to the pin"
                 onPress={() => {
                   dispatch({ type: 'ADD_CLIP_TO_PIN', pinId: duplicateOf.id, clip: { handle: '@shared', caption: url, savedBy: 'B', savedAt: new Date().toISOString(), sourceUrl: url } });
-                  navigation.replace('PinDetail', { pinId: duplicateOf.id });
+                  openPin(duplicateOf.id);
                 }}
               />
               <SecondaryButton label="Keep both" onPress={() => navigation.goBack()} />
@@ -133,13 +145,20 @@ export default function ShareSheetScreen() {
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 18 }}>
               {(Object.keys(CATEGORY) as Category[]).filter((k) => k !== 'transit').map((k) => (
-                <Pressable key={k} onPress={() => setPickedCat(k)} style={[styles.catChip, pickedCat === k && styles.catChipActive]}>
+                <Pressable
+                  key={k}
+                  onPress={() => {
+                    setPickedCat(k);
+                    dispatch({ type: 'SET_PIN_CAT', pinId: savedPin.id, cat: k });
+                  }}
+                  style={[styles.catChip, pickedCat === k && styles.catChipActive]}
+                >
                   <CategoryDot cat={k} size={8} />
                   <Text style={styles.catChipText}>{CATEGORY[k].label}</Text>
                 </Pressable>
               ))}
             </View>
-            <PrimaryButton label="View the pin" onPress={() => navigation.replace('PinDetail', { pinId: savedPin.id })} />
+            <PrimaryButton label="View the pin" onPress={() => openPin(savedPin.id)} />
           </View>
         )}
       </View>

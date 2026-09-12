@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { useClock } from '../hooks/useClock';
-import { DAYS, cityCoordsFor, dayMetaForDate, TRIP } from '../data/trip';
+import { DAYS, cityCoordsFor, dayMetaForDate } from '../data/trip';
 import { eventsForDay } from '../data/itinerary';
 import { ItineraryEvent } from '../types';
 import { fetchWeather } from '../services/weather';
@@ -18,7 +19,10 @@ import { scheduleLeaveByNotification, requestNotificationPermission } from '../s
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { Card, CategoryDot, DoubleRule, PrimaryButton, SecondaryButton, SectionLabel, Tag } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { isoDateOnly, dateToDecimalHour, hourToClock, combineDateAndHour } from '../utils/time';
+import { isoDateOnly, dateToDecimalHour, hourToClock, combineDateAndHour, daysBetween, parseIsoDateLocal } from '../utils/time';
+
+/** How long before a leave-by moment the countdown card starts filling up. */
+const LEAD_WINDOW_MIN = 45;
 
 function useTripPhase(now: Date) {
   const todayIso = isoDateOnly(now);
@@ -32,6 +36,7 @@ function useTripPhase(now: Date) {
 
 export default function NowScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
   const now = useClock();
   const { phase, meta } = useTripPhase(now);
@@ -43,11 +48,15 @@ export default function NowScreen() {
     [meta.day, state.extraEvents]
   );
 
-  const currentHour = phase === 'during' ? dateToDecimalHour(now) : phase === 'before' ? 0 : 24;
-  const nextEvent = dayEvents.find((e) => e.start > currentHour - 0.01);
-  const upNext = nextEvent ? dayEvents.filter((e) => e.start > nextEvent.start).slice(0, 3) : [];
+  const currentHour = dateToDecimalHour(now);
+  // Only "during" has a live position in the day; before the trip the whole of
+  // Day 1 is still ahead of you, and after it nothing is.
+  const nextEvent = phase === 'during' ? dayEvents.find((e) => e.start > currentHour - 0.01) : phase === 'before' ? dayEvents[0] : undefined;
+  const laterEvents = nextEvent ? dayEvents.filter((e) => e.start > nextEvent.start).slice(0, 3) : [];
 
-  const [leaveMinutes, setLeaveMinutes] = useState<number | null>(null);
+  // The moment to walk out of the door, as a timestamp — the minutes shown are
+  // derived from it on every clock tick, so the countdown actually counts down.
+  const [leaveAt, setLeaveAt] = useState<number | null>(null);
   const [travelExact, setTravelExact] = useState(false);
   const [weather, setWeather] = useState(state.weatherByDay[meta.date] ?? null);
 
@@ -79,9 +88,10 @@ export default function NowScreen() {
 
   useEffect(() => {
     if (!nextEvent || phase !== 'during') {
-      setLeaveMinutes(null);
+      setLeaveAt(null);
       return;
     }
+    let cancelled = false;
     (async () => {
       const eventTime = combineDateAndHour(meta.date, nextEvent.start);
       if (nextEvent.location && state.location) {
@@ -89,23 +99,37 @@ export default function NowScreen() {
           lat: nextEvent.location.lat,
           lng: nextEvent.location.lng,
         });
+        if (cancelled) return;
         setTravelExact(exact);
         const leaveBy = new Date(eventTime.getTime() - (minutes + 7) * 60000);
-        setLeaveMinutes(Math.round((leaveBy.getTime() - now.getTime()) / 60000));
+        setLeaveAt(leaveBy.getTime());
         requestNotificationPermission().then((ok) => {
-          if (ok) scheduleLeaveByNotification({ id: `leave-${nextEvent.id}`, title: `Leave in a few minutes`, body: `Head to ${nextEvent.title} — ${minutes} min away`, fireAt: leaveBy });
+          if (ok) {
+            scheduleLeaveByNotification({
+              id: `leave-${nextEvent.id}`,
+              title: `Leave for ${nextEvent.title}`,
+              body: `${minutes} min away — head out now to make ${hourToClock(nextEvent.start)}`,
+              fireAt: leaveBy,
+            });
+          }
         });
       } else {
         setTravelExact(false);
-        const leaveBy = new Date(eventTime.getTime() - 15 * 60000);
-        setLeaveMinutes(Math.round((leaveBy.getTime() - now.getTime()) / 60000));
+        setLeaveAt(eventTime.getTime() - 15 * 60000);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextEvent?.id, state.location, phase]);
 
-  const snoozedActive = state.snoozedUntil != null && state.snoozedUntil > Date.now();
-  const displayLeave = snoozedActive ? Math.round((state.snoozedUntil! - Date.now()) / 60000) : leaveMinutes;
+  const snoozedActive = state.snoozedUntil != null && state.snoozedUntil > now.getTime();
+  const leaveMinutes = leaveAt == null ? null : Math.round((leaveAt - now.getTime()) / 60000);
+  // Snoozing quiets the alert; it doesn't move when you actually have to leave,
+  // so the number on screen stays honest either way.
+  const progressPct =
+    leaveMinutes == null ? 0 : Math.max(4, Math.min(100, ((LEAD_WINDOW_MIN - leaveMinutes) / LEAD_WINDOW_MIN) * 100));
 
   const nearby = useMemo(() => {
     const withDist = state.pins.map((p) => ({
@@ -116,12 +140,21 @@ export default function NowScreen() {
     return withDist.slice(0, 3);
   }, [state.pins, state.location]);
 
+  const daysToGo = daysBetween(now, parseIsoDateLocal(DAYS[0].date));
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 40 }}
+    >
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <SectionLabel>
-            {phase === 'during' ? `Day ${meta.day} of 12 · ${meta.dow} ${meta.date.slice(5).replace('-', '/')}` : phase === 'before' ? 'Before the trip' : 'Trip complete'}
+            {phase === 'during'
+              ? `Day ${meta.day} of 12 · ${meta.dow} ${meta.date.slice(5).replace('-', '/')}`
+              : phase === 'before'
+              ? 'Before the trip'
+              : 'Trip complete'}
           </SectionLabel>
           <Text style={styles.h1}>{meta.city}</Text>
         </View>
@@ -133,7 +166,7 @@ export default function NowScreen() {
               <Text style={styles.wLow}>{weather.high}°</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-              <Icon name="CloudRain" size={13} color={COLORS.label} />
+              <Icon name={weather.icon} size={13} color={COLORS.label} />
               <Text style={styles.wCond}>{weather.condition}</Text>
             </View>
           </View>
@@ -146,18 +179,32 @@ export default function NowScreen() {
         <Card style={{ padding: 18, marginBottom: 22, borderLeftWidth: 3, borderLeftColor: COLORS.accent }}>
           <SectionLabel style={{ color: COLORS.accentTintText, marginBottom: 10 }}>Countdown</SectionLabel>
           <Text style={styles.heroTitle}>
-            {Math.max(0, Math.ceil((new Date(DAYS[0].date).getTime() - now.getTime()) / 86400000))} days until Tokyo
+            {daysToGo <= 0 ? 'Tokyo today' : daysToGo === 1 ? 'Tokyo tomorrow' : `${daysToGo} days until Tokyo`}
           </Text>
           <Text style={styles.heroSub}>Day 1 opens with arrival at Narita and check-in at Hotel Gracery Shinjuku.</Text>
+        </Card>
+      )}
+
+      {phase === 'after' && (
+        <Card style={{ padding: 18, marginBottom: 22, borderLeftWidth: 3, borderLeftColor: COLORS.accent }}>
+          <SectionLabel style={{ marginBottom: 10 }}>お疲れさま</SectionLabel>
+          <Text style={styles.heroTitle}>That's the trip</Text>
+          <Text style={styles.heroSub}>All 12 days are still on the Days tab, and every saved pin is still on the map.</Text>
         </Card>
       )}
 
       {phase === 'during' && nextEvent && (
         <Card style={{ padding: 18, marginBottom: 22, borderLeftWidth: 3, borderLeftColor: COLORS.magenta }}>
           <View style={styles.pulseRow}>
-            <View style={styles.pulseDot} />
-            <Text style={styles.pulseLabel}>
-              {displayLeave == null ? 'Calculating…' : displayLeave <= 0 ? 'Leave now' : `Leave in ${displayLeave} min`}
+            <View style={[styles.pulseDot, snoozedActive && { backgroundColor: COLORS.labelFaint }]} />
+            <Text style={[styles.pulseLabel, snoozedActive && { color: COLORS.label }]}>
+              {leaveMinutes == null
+                ? 'Calculating…'
+                : leaveMinutes <= 0
+                ? snoozedActive
+                  ? 'Snoozed · leave now'
+                  : 'Leave now'
+                : `${snoozedActive ? 'Snoozed · ' : ''}Leave in ${leaveMinutes} min`}
             </Text>
           </View>
           <Text style={styles.heroTitle}>Head to {nextEvent.title}</Text>
@@ -169,7 +216,7 @@ export default function NowScreen() {
             <View
               style={[
                 styles.progressFill,
-                { width: `${Math.max(6, Math.min(100, snoozedActive ? 42 : 68))}%` },
+                { width: `${progressPct}%`, backgroundColor: snoozedActive ? COLORS.labelFaint : COLORS.magenta },
               ]}
             />
           </View>
@@ -180,8 +227,12 @@ export default function NowScreen() {
               onPress={() => navigation.getParent()?.navigate('MapTab')}
             />
             <SecondaryButton
-              label={snoozedActive ? 'Snoozed' : 'Snooze 10'}
-              onPress={() => dispatch({ type: 'SNOOZE_LEAVE_BY', minutes: 10 })}
+              label={snoozedActive ? 'Un-snooze' : 'Snooze 10'}
+              onPress={() =>
+                snoozedActive
+                  ? dispatch({ type: 'CLEAR_SNOOZE' })
+                  : dispatch({ type: 'SNOOZE_LEAVE_BY', minutes: 10 })
+              }
             />
           </View>
         </Card>
@@ -195,11 +246,13 @@ export default function NowScreen() {
         </Card>
       )}
 
-      {upNext.length > 0 && (
+      {nextEvent && (
         <>
-          <SectionLabel style={{ marginBottom: 12 }}>Then today</SectionLabel>
+          <SectionLabel style={{ marginBottom: 12 }}>
+            {phase === 'during' ? 'Then today' : `Day 1 · ${DAYS[0].dow} ${DAYS[0].date.slice(5).replace('-', '/')}`}
+          </SectionLabel>
           <View style={{ marginBottom: 26 }}>
-            {upNext.map((e: ItineraryEvent) => (
+            {(phase === 'during' ? laterEvents : [nextEvent, ...laterEvents]).map((e: ItineraryEvent) => (
               <Pressable
                 key={e.id}
                 onPress={() => navigation.navigate('EventDetail', { eventId: e.id })}
@@ -219,7 +272,7 @@ export default function NowScreen() {
       )}
 
       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-        <SectionLabel>Saved nearby</SectionLabel>
+        <SectionLabel>{state.location ? 'Saved nearby' : 'Saved places'}</SectionLabel>
         <Pressable onPress={() => navigation.getParent()?.navigate('MapTab' as never)}>
           <Text style={styles.seeAll}>See all {state.pins.length}</Text>
         </Pressable>
@@ -236,7 +289,9 @@ export default function NowScreen() {
               <Text style={styles.rowTitle}>{pin.name}</Text>
               <Text style={styles.rowSub}>{pin.sub}</Text>
             </View>
-            <Text style={styles.rowDist}>{meters == null ? '—' : meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`}</Text>
+            <Text style={styles.rowDist}>
+              {meters == null ? '—' : meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`}
+            </Text>
           </Pressable>
         ))}
       </View>

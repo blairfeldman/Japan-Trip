@@ -5,7 +5,11 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
-import { useFonts, SourceSerif4_400Regular, SourceSerif4_600SemiBold } from '@expo-google-fonts/source-serif-4';
+// Imported per weight rather than from the package root: the root barrel
+// re-exports all 20 faces, so Metro bundled ~5MB of fonts the app never uses.
+import { useFonts } from 'expo-font';
+import { SourceSerif4_400Regular } from '@expo-google-fonts/source-serif-4/400Regular';
+import { SourceSerif4_600SemiBold } from '@expo-google-fonts/source-serif-4/600SemiBold';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { AppStateProvider } from './src/store/AppState';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -29,9 +33,11 @@ function ShareIntentBridge() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ SourceSerif4_400Regular, SourceSerif4_600SemiBold });
+  const [fontsLoaded, fontError] = useFonts({ SourceSerif4_400Regular, SourceSerif4_600SemiBold });
 
-  if (!fontsLoaded) {
+  // A font fetch that fails offline used to leave the app on the spinner
+  // forever; render with the system face instead.
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg }}>
         <ActivityIndicator color={COLORS.accent} />

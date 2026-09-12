@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
 import { Category, ItineraryEvent, SavedPin, InboxBooking } from '../types';
 import { SEED_PINS } from '../data/pins';
 import { SEED_INBOX } from '../data/inbox';
-import { TRIP } from '../data/trip';
+import { TRIP, dayIndexForDate } from '../data/trip';
 import { WeatherNow } from '../services/weather';
 import { LatLng } from '../services/location';
+import { loadPersisted, savePersisted, PersistedState } from '../services/persist';
+import { isoDateOnly } from '../utils/time';
 
 interface ConverterState {
   amount: string;
@@ -26,14 +28,17 @@ interface State {
   location: LatLng | null;
   nowOverride: Date | null;
   decisions: Record<string, 'booked' | 'skipped'>;
+  hydrated: boolean;
 }
 
 type Action =
+  | { type: 'HYDRATE'; saved: Partial<PersistedState> | null }
   | { type: 'SET_DAY'; idx: number }
   | { type: 'TOGGLE_CAT_FILTER'; cat: Category }
   | { type: 'CLEAR_CAT_FILTERS' }
   | { type: 'SET_OFFLINE'; value: boolean }
   | { type: 'ADD_PIN'; pin: SavedPin }
+  | { type: 'SET_PIN_CAT'; pinId: string; cat: Category }
   | { type: 'ADD_CLIP_TO_PIN'; pinId: string; clip: SavedPin['clips'][number] }
   | { type: 'ADD_INBOX_TO_DAY'; id: string; day: number; event: ItineraryEvent }
   | { type: 'ADD_MANUAL_EVENT'; event: ItineraryEvent }
@@ -43,10 +48,12 @@ type Action =
   | { type: 'SET_LOCATION'; location: LatLng }
   | { type: 'SET_NOW_OVERRIDE'; date: Date | null }
   | { type: 'SNOOZE_LEAVE_BY'; minutes: number }
+  | { type: 'CLEAR_SNOOZE' }
   | { type: 'DECIDE_ITEM'; id: string; decision: 'booked' | 'skipped' };
 
 const initialState: State = {
-  dayIdx: 5,
+  // Opens on the day the trip is actually on, not the prototype's pinned Day 6.
+  dayIdx: dayIndexForDate(isoDateOnly(new Date())),
   catFilters: {},
   offline: false,
   pins: SEED_PINS,
@@ -60,10 +67,21 @@ const initialState: State = {
   location: null,
   nowOverride: null,
   decisions: {},
+  hydrated: false,
 };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
+    case 'HYDRATE':
+      return {
+        ...state,
+        ...(action.saved ?? {}),
+        // Seed data is the floor: a saved-but-empty pin list shouldn't wipe
+        // the places that shipped with the app.
+        pins: action.saved?.pins?.length ? action.saved.pins : state.pins,
+        inbox: action.saved?.inbox ?? state.inbox,
+        hydrated: true,
+      };
     case 'SET_DAY':
       return { ...state, dayIdx: action.idx };
     case 'TOGGLE_CAT_FILTER':
@@ -74,6 +92,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, offline: action.value };
     case 'ADD_PIN':
       return { ...state, pins: [action.pin, ...state.pins] };
+    case 'SET_PIN_CAT':
+      return { ...state, pins: state.pins.map((p) => (p.id === action.pinId ? { ...p, cat: action.cat } : p)) };
     case 'ADD_CLIP_TO_PIN':
       return {
         ...state,
@@ -82,7 +102,7 @@ function reducer(state: State, action: Action): State {
     case 'ADD_INBOX_TO_DAY':
       return {
         ...state,
-        inbox: state.inbox.map((b) => (b.id === action.id ? { ...b, addedToDay: true } : b)),
+        inbox: state.inbox.map((b) => (b.id === action.id ? { ...b, addedToDay: true, day: action.day } : b)),
         extraEvents: [...state.extraEvents, action.event],
       };
     case 'ADD_MANUAL_EVENT':
@@ -99,6 +119,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, nowOverride: action.date };
     case 'SNOOZE_LEAVE_BY':
       return { ...state, snoozedUntil: Date.now() + action.minutes * 60000 };
+    case 'CLEAR_SNOOZE':
+      return { ...state, snoozedUntil: null };
     case 'DECIDE_ITEM':
       return { ...state, decisions: { ...state.decisions, [action.id]: action.decision } };
     default:
@@ -108,8 +130,44 @@ function reducer(state: State, action: Action): State {
 
 const StateCtx = createContext<{ state: State; dispatch: React.Dispatch<Action> } | null>(null);
 
+function persistable(state: State): PersistedState {
+  return {
+    pins: state.pins,
+    inbox: state.inbox,
+    extraEvents: state.extraEvents,
+    decisions: state.decisions,
+    catFilters: state.catFilters,
+    converter: state.converter,
+  };
+}
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    loadPersisted().then((saved) => dispatch({ type: 'HYDRATE', saved }));
+  }, []);
+
+  // Write back on change, debounced so a burst of edits is one write. Held
+  // until hydration finishes so the seed state can't overwrite what's on disk.
+  useEffect(() => {
+    if (!state.hydrated) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => savePersisted(persistable(state)), 400);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [
+    state.hydrated,
+    state.pins,
+    state.inbox,
+    state.extraEvents,
+    state.decisions,
+    state.catFilters,
+    state.converter,
+  ]);
+
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return <StateCtx.Provider value={value}>{children}</StateCtx.Provider>;
 }
@@ -121,15 +179,15 @@ export function useAppState() {
 }
 
 /** Parses a booking's first HH:MM into a decimal hour; falls back to a sane default. */
-export function inboxToEvent(b: InboxBooking, dateIso: string): ItineraryEvent {
+export function inboxToEvent(b: InboxBooking, day: number): ItineraryEvent {
   const m = b.sub.match(/(\d{1,2}):(\d{2})/);
   const start = m ? parseInt(m[1], 10) + parseInt(m[2], 10) / 60 : 12;
   const dur = b.kind === 'Flight' ? 1.5 : b.kind === 'Restaurant' ? 1.25 : b.kind === 'Train' ? 0.6 : 1;
-  const cat: Category = b.kind === 'Restaurant' ? 'food' : 'transit';
+  const cat: Category = b.kind === 'Restaurant' ? 'food' : b.kind === 'Hotel' ? 'hotel' : b.kind === 'Activity' ? 'sightseeing' : 'transit';
   const paid = /paid|conf\./i.test(b.sub) && !/pay at the counter/i.test(b.sub);
   return {
     id: `${b.id}-event`,
-    day: b.day,
+    day,
     start,
     end: start + dur,
     cat,
