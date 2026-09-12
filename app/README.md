@@ -54,19 +54,70 @@ switched off under Expo Go (it doesn't ship those native modules — see
 and the phrase audio all work, and the map draws real tiles using Expo Go's
 own Google key, so no API key is needed just to look at it.
 
-### Full build
+## Building a real APK (do this before the trip)
 
-For share-to-app and notifications you need a real build, not Expo Go:
+**Expo Go cannot run this app in Japan.** It loads the JS bundle from the
+Metro dev server on your laptop — no `npx expo start` on the same network,
+no app. It's a preview tool, not a way to ship the app to yourself. You need
+a standalone build installed on the phone.
 
-```bash
+That build is also what switches on the three features `src/env.ts` disables
+under Expo Go: notifications, share-to-app, and background proximity alerts.
+
+### One-time setup
+
+```powershell
 npm install
-cp .env.example .env   # fill in what you have, see below
-npx expo prebuild --clean
-npx expo run:android    # builds and installs a dev client on a device/emulator
+npx.cmd eas-cli login          # free Expo account
+npx.cmd eas-cli init           # writes extra.eas.projectId into app.json — commit that
 ```
 
-After the first `run:android`, day-to-day development can use
-`npx expo start --dev-client` against that installed build.
+Then push the Maps key to EAS. **This step is easy to miss**: `.env` is
+gitignored and EAS uploads only git-tracked files, so a key that works in
+Expo Go is simply absent on the build server, and you get a grey map in a
+build that looked fine locally.
+
+```powershell
+npx.cmd eas-cli env:set --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value "<your key>" --visibility sensitive --environment preview --environment development --environment production
+```
+
+EAS variables are scoped per *environment*, and each profile in `eas.json`
+names the environment it pulls from (`preview` → `preview`, and so on) — so
+set it in all three and the profile you build won't matter.
+
+### The build you actually want
+
+```powershell
+npx.cmd eas-cli build --platform android --profile preview
+```
+
+`preview` (see `eas.json`) produces an **APK with the JS bundled in** — it
+runs with no laptop, no dev server, no network. That's the one to have on
+the phone in Japan. EAS emails a download link; open it on the phone and
+install it (Android will ask you to allow installs from that browser).
+
+`production` builds an `.aab` instead, which is for the Play Store and
+**cannot be sideloaded** — don't use it for this.
+
+### Iterating after you leave Expo Go
+
+A `preview` build has the JS frozen inside it, so every code change means a
+fresh ~15-minute cloud build. For day-to-day work, build the dev client
+once:
+
+```powershell
+npx.cmd eas-cli build --platform android --profile development
+npx.cmd expo start --dev-client     # fast reload against the installed build
+```
+
+That one does need your dev server, exactly like Expo Go — it's for the
+sofa, not for Kyoto. Build `preview` again before you fly.
+
+### Building locally instead
+
+If you'd rather not use EAS's servers, `npx.cmd expo prebuild --clean` then
+`npx.cmd expo run:android` builds on your machine — but that needs Android
+Studio, the Android SDK and a JDK installed on Windows first.
 
 ## Setup you need to do yourself
 
