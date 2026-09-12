@@ -119,10 +119,9 @@ export default function ShareSheetScreen() {
             ) : (
               <>
                 <Text style={styles.bodyText}>
-                  The place name couldn't be read out of this {link.platform} post
-                  {link.platform === 'Instagram' ? " — Instagram doesn't allow it without an account" : ''}. Add it by
-                  hand and the link stays attached to the pin — share it again, or save another video of the same
-                  place, and it'll merge instead of making a second pin.
+                  The place name couldn't be read out of this {link.platform} post — it may be private, or the
+                  caption may not name anywhere. Add it by hand and the link stays attached to the pin — share it
+                  again, or save another video of the same place, and it'll merge instead of making a second pin.
                 </Text>
                 <Text style={styles.linkLine} numberOfLines={2}>
                   {link.handle} · {url}

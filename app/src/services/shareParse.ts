@@ -10,8 +10,12 @@ import { describeSharedLink } from '../utils/shareLink';
  * on-screen text and pinned comments and asks a model for the actual place.
  * This just hands you a filled-in name field you can correct.
  *
- * Instagram is not supported: its oEmbed has required an access token since
- * 2020, so IG links fall back to being typed in by hand.
+ * Instagram goes through Meta's `instagram_oembed`. That needed an app access
+ * token and App Review from October 2020 until 15 June 2026, when Meta made
+ * the oEmbed APIs tokenless again — so it now needs no account, app or key
+ * either. If Meta reverses that, the call 401s and the app falls back to the
+ * by-hand flow on its own.
+ * https://developers.facebook.com/blog/post/2026/06/15/tokenless-access-to-meta-oembed-apis/
  *
  * Every failure path returns null — if TikTok changes or blocks this, the app
  * quietly goes back to the manual flow rather than breaking.
@@ -25,6 +29,13 @@ export interface ParsedShare {
 }
 
 const OEMBED_TIMEOUT_MS = 7000;
+
+const OEMBED_ENDPOINT: Record<'TikTok' | 'Instagram', (url: string) => string> = {
+  TikTok: (url) => `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`,
+  // Tokenless since 2026-06-15; pinned to a version so a default bump can't
+  // silently change the response shape.
+  Instagram: (url) => `https://graph.facebook.com/v25.0/instagram_oembed?url=${encodeURIComponent(url)}&omitscript=true`,
+};
 
 /**
  * Strips a TikTok caption down to something usable as a place name: hashtags,
@@ -61,28 +72,30 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
   }
 }
 
+/** Both services answer in oEmbed's shape; only the handle field differs. */
+export function parseOEmbedPayload(json: any, fallbackHandle: string): ParsedShare | null {
+  const caption = typeof json?.title === 'string' ? json.title : '';
+  // TikTok names it author_unique_id; Instagram uses author_name.
+  const rawHandle: unknown = json?.author_unique_id ?? json?.author_name;
+  const handle = typeof rawHandle === 'string' && rawHandle ? `@${String(rawHandle).replace(/^@/, '')}` : fallbackHandle;
+  const suggestedName = placeNameFromCaption(caption);
+  if (!suggestedName && handle === fallbackHandle) return null;
+  return {
+    caption,
+    suggestedName,
+    handle,
+    thumbnailUrl: typeof json?.thumbnail_url === 'string' ? json.thumbnail_url : undefined,
+  };
+}
+
 export async function parseSharedVideo(rawUrl: string): Promise<ParsedShare | null> {
   const link = describeSharedLink(rawUrl);
-  if (link.platform !== 'TikTok') return null;
+  if (link.platform !== 'TikTok' && link.platform !== 'Instagram') return null;
 
   try {
-    const res = await fetchWithTimeout(
-      `https://www.tiktok.com/oembed?url=${encodeURIComponent(link.url)}`,
-      OEMBED_TIMEOUT_MS
-    );
+    const res = await fetchWithTimeout(OEMBED_ENDPOINT[link.platform](link.url), OEMBED_TIMEOUT_MS);
     if (!res.ok) return null;
-    const json: any = await res.json();
-
-    const caption = typeof json?.title === 'string' ? json.title : '';
-    const suggestedName = placeNameFromCaption(caption);
-    if (!suggestedName && !json?.author_unique_id) return null;
-
-    return {
-      caption,
-      suggestedName,
-      handle: json?.author_unique_id ? `@${json.author_unique_id}` : link.handle,
-      thumbnailUrl: typeof json?.thumbnail_url === 'string' ? json.thumbnail_url : undefined,
-    };
+    return parseOEmbedPayload(await res.json(), link.handle);
   } catch {
     // Offline, blocked, rate-limited, or the endpoint changed shape — the
     // caller falls back to the by-hand flow.

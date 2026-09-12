@@ -5,7 +5,7 @@
  */
 import { mergeSynced, parseBackup, buildBackup, findSamePlace, findPinBySourceUrl, SyncedState } from './backup';
 import { describeSharedLink } from '../utils/shareLink';
-import { placeNameFromCaption } from './shareParse';
+import { placeNameFromCaption, parseOEmbedPayload } from './shareParse';
 import { SavedPin, ItineraryEvent } from '../types';
 
 let pass = 0, fail = 0;
@@ -139,6 +139,37 @@ console.log('\n-- caption -> place name --');
   check('keeps Japanese text', c('一蘭 渋谷店 #ramen') === '一蘭 渋谷店', JSON.stringify(c('一蘭 渋谷店 #ramen')));
   check('empty caption is empty, not a crash', c('') === '' && c('#a #b 🍜') === '');
   check('caps runaway captions', c('x'.repeat(300)).length <= 80);
+}
+
+console.log('\n-- oEmbed payloads (TikTok + Instagram shapes) --');
+{
+  const tt = parseOEmbedPayload({
+    title: 'Best ramen in Tokyo 🍜 Ichiran Shibuya #tokyo #ramen',
+    author_unique_id: 'tokyo.eats',
+    author_name: 'Tokyo Eats',
+    thumbnail_url: 'https://p16.tiktok.com/cover.jpg',
+  }, '@fallback');
+  check('tiktok: prefers author_unique_id', tt?.handle === '@tokyo.eats', JSON.stringify(tt));
+  // With no separator there is nothing to split on, so the whole cleaned
+  // caption is offered — a prefill to trim, not true extraction.
+  check('tiktok: offers the cleaned caption', tt?.suggestedName === 'Best ramen in Tokyo Ichiran Shibuya', JSON.stringify(tt?.suggestedName));
+  check('tiktok: keeps the cover frame', tt?.thumbnailUrl === 'https://p16.tiktok.com/cover.jpg');
+
+  const ig = parseOEmbedPayload({
+    title: 'Matcha at Ippodo Kyoto 🍵 #kyoto',
+    author_name: 'kyoto.eats',
+    thumbnail_url: 'https://scontent.cdninstagram.com/x.jpg',
+  }, '@instagram');
+  check('instagram: falls back to author_name', ig?.handle === '@kyoto.eats', JSON.stringify(ig));
+  check('instagram: derives a place name', ig?.suggestedName === 'Matcha at Ippodo Kyoto', JSON.stringify(ig?.suggestedName));
+
+  check('already-@ handle is not double-prefixed', parseOEmbedPayload({ title: 'X', author_name: '@who' }, '@f')?.handle === '@who');
+  check('no thumbnail is fine', parseOEmbedPayload({ title: 'Ippodo', author_name: 'a' }, '@f')?.thumbnailUrl === undefined);
+  check('empty payload yields nothing', parseOEmbedPayload({}, '@f') === null);
+  check('junk payload yields nothing', parseOEmbedPayload({ title: 123, author_name: null }, '@f') === null);
+  check('caption-only still usable', parseOEmbedPayload({ title: 'Ippodo Kyoto' }, '@f')?.suggestedName === 'Ippodo Kyoto');
+  check('separator caption trims to the place',
+    parseOEmbedPayload({ title: 'Best ramen | Ichiran Shibuya Tokyo', author_name: 'a' }, '@f')?.suggestedName === 'Ichiran Shibuya Tokyo');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

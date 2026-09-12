@@ -26,7 +26,7 @@ provision on your behalf. Here's the honest breakdown:
 | Saved pins, day plans and Book it / Skip decisions surviving a restart | ✅ Live — persisted to `AsyncStorage`, see `src/services/persist.ts` |
 | Backing those up, and merging two phones' saves | ✅ Live — export/import a JSON file from the Inbox screen, no server needed. See below |
 | Shared pins, forwarded-booking inbox sync | ⚠️ Needs the backend in `server/` deployed and `EXPO_PUBLIC_API_BASE_URL` set — falls back to on-device-only storage without it |
-| "Share to app" from TikTok/Instagram | ✅ Live in a real build (not Expo Go). Shared links attach to the pin, and re-sharing a clip or saving a place that's already pinned merges instead of duplicating — all on-device. Reading the *place name* out of the video still needs the backend; see `server/README.md` |
+| "Share to app" from TikTok/Instagram | ✅ Live in a real build (not Expo Go). Shared links attach to the pin, and re-sharing a clip or saving a place that's already pinned merges instead of duplicating. The caption, author and cover frame are read from the services' own public oEmbed endpoints — no key, no account, no backend — and offered as a name to correct. Reading the place out of *on-screen text and pinned comments* is what still needs `server/` |
 | Forwarding real booking emails to `japan@trip.mail` | ⚠️ That address is a placeholder from the design — needs your own domain + inbound-email provider, see `server/README.md` |
 
 Nothing here fakes success: where a real integration isn't configured, the
