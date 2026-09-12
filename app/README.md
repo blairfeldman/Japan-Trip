@@ -17,7 +17,8 @@ provision on your behalf. Here's the honest breakdown:
 | All 12 screens, real navigation, real data | ✅ Live — pulled from the actual spreadsheet, see `src/data/` |
 | Weather (Now screen) | ✅ Live — [Open-Meteo](https://open-meteo.com/), keyless |
 | Currency converter | ✅ Live — [frankfurter.app](https://www.frankfurter.app/), keyless (ECB daily rate) |
-| GPS + "leave in N min" + proximity alerts | ✅ Live — real `expo-location` geofencing + `expo-notifications`, see `src/services/location.ts` / `notifications.ts` |
+| GPS distances + "leave in N min" countdown | ✅ Live — real `expo-location`, see `src/services/location.ts` |
+| Proximity alerts when near a saved pin | ⚠️ Wired but **unverified** — real `expo-location` geofencing + local notifications, armed from `NowScreen`. Needs a dev build (off in Expo Go) and someone physically walking near a pin to confirm |
 | Walking ETA for leave-by alerts | ⚠️ Live *estimate* (straight-line distance ÷ avg. walking speed) unless you add a Google Directions key — see below |
 | Phrase audio + slow/normal + word highlight | ✅ Live — on-device TTS via `expo-speech`, real `ja-JP` voice |
 | Add Pin → address matching | ✅ Live — [Nominatim](https://nominatim.org/) geocoding, keyless |
@@ -39,8 +40,22 @@ before considering it done.
 
 ## Running it
 
-This app uses `expo-share-intent`, which needs native code — **you can't
-use Expo Go**, only a dev client:
+### Quickest look: Expo Go
+
+```bash
+npm install
+npx expo start      # scan the QR with Expo Go on an Android phone
+```
+
+Share-to-app, scheduled notifications, and background geofencing are
+switched off under Expo Go (it doesn't ship those native modules — see
+`src/env.ts`). Every screen, the live weather/currency calls, GPS distances
+and the phrase audio all work, and the map draws real tiles using Expo Go's
+own Google key, so no API key is needed just to look at it.
+
+### Full build
+
+For share-to-app and notifications you need a real build, not Expo Go:
 
 ```bash
 npm install

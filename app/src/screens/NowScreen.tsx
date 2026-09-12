@@ -7,7 +7,13 @@ import { DAYS, cityCoordsFor, dayMetaForDate, TRIP } from '../data/trip';
 import { eventsForDay } from '../data/itinerary';
 import { ItineraryEvent } from '../types';
 import { fetchWeather } from '../services/weather';
-import { getCurrentLocation, distanceMeters, walkingEtaMinutes } from '../services/location';
+import {
+  getCurrentLocation,
+  distanceMeters,
+  walkingEtaMinutes,
+  startProximityGeofencing,
+  buildGeofenceRegions,
+} from '../services/location';
 import { scheduleLeaveByNotification, requestNotificationPermission } from '../services/notifications';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { Card, CategoryDot, DoubleRule, PrimaryButton, SecondaryButton, SectionLabel, Tag } from '../components/ui';
@@ -64,6 +70,12 @@ export default function NowScreen() {
       if (loc) dispatch({ type: 'SET_LOCATION', location: loc });
     })();
   }, []);
+
+  // Arm the "you're near a saved pin" alerts. Re-armed whenever the pin list
+  // changes so newly-saved places start firing without an app restart.
+  useEffect(() => {
+    startProximityGeofencing(buildGeofenceRegions(state.pins)).catch(() => {});
+  }, [state.pins]);
 
   useEffect(() => {
     if (!nextEvent || phase !== 'during') {

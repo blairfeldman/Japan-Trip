@@ -6,17 +6,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { useFonts, SourceSerif4_400Regular, SourceSerif4_600SemiBold } from '@expo-google-fonts/source-serif-4';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { AppStateProvider } from './src/store/AppState';
 import RootNavigator from './src/navigation/RootNavigator';
 import { COLORS } from './src/theme';
+import { isExpoGo } from './src/env';
 import './src/services/notifications'; // registers the background geofencing task
-
-// Share-to-app needs a native module Expo Go doesn't ship, so it's switched
-// off there. Every other screen runs in Expo Go, which makes it the quickest
-// way to look at the app without a full build.
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 export const navigationRef = React.createRef<NavigationContainerRef<any>>();
 

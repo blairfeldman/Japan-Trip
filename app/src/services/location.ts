@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import { isExpoGo } from '../env';
 
 export const PROXIMITY_TASK = 'jt-proximity-geofence';
 export const PROXIMITY_RADIUS_M = 150;
@@ -73,7 +74,22 @@ export interface GeofenceRegion {
   notifyOnExit: boolean;
 }
 
+/** Android caps active geofences at 100, so the nearest pins win. */
+export function buildGeofenceRegions(
+  pins: { id: string; name: string; lat: number; lng: number }[]
+): GeofenceRegion[] {
+  return pins.slice(0, 100).map((p) => ({
+    identifier: `${p.id}::${p.name}`,
+    latitude: p.lat,
+    longitude: p.lng,
+    radius: PROXIMITY_RADIUS_M,
+    notifyOnEnter: true,
+    notifyOnExit: false,
+  }));
+}
+
 export async function startProximityGeofencing(regions: GeofenceRegion[]) {
+  if (isExpoGo || regions.length === 0) return false;
   const bg = await requestBackgroundPermission();
   if (!bg) return false;
   await Location.startGeofencingAsync(PROXIMITY_TASK, regions);
