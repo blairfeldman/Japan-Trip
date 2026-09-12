@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
 import { COLORS, FONT_SERIF_REGULAR } from '../theme';
@@ -15,16 +15,22 @@ export function PlaceholderBanner({
   height = 190,
   caption,
   onBack,
+  imageUrl,
 }: {
   height?: number;
   caption?: string;
   onBack?: () => void;
+  /** A real cover frame, when one was read off the shared video. */
+  imageUrl?: string;
 }) {
   // The banner runs to the very top of the screen under edge-to-edge, so the
   // back button has to clear the status bar itself.
   const insets = useSafeAreaInsets();
   return (
     <View style={{ height: height + insets.top, backgroundColor: '#eae7e7', position: 'relative' }}>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      ) : (
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Defs>
           <Pattern id="hatch" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45)">
@@ -34,6 +40,7 @@ export function PlaceholderBanner({
         </Defs>
         <Rect width="100%" height="100%" fill="url(#hatch)" />
       </Svg>
+      )}
       {onBack && (
         <Pressable onPress={onBack} style={[styles.back, { top: insets.top + 14 }]} hitSlop={6}>
           <Icon name="ArrowLeft" size={19} color={COLORS.ink} />

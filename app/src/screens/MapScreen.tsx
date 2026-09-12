@@ -10,6 +10,7 @@ import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { CategoryDot } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { getCurrentLocation, distanceMeters } from '../services/location';
+import { canRenderMap } from '../env';
 
 export default function MapScreen() {
   const navigation = useNavigation<any>();
@@ -60,12 +61,25 @@ export default function MapScreen() {
 
   return (
     <View style={styles.screen}>
+      {!canRenderMap ? (
+        <View style={[StyleSheet.absoluteFill, styles.noMap]}>
+          <Icon name="MapTrifold" size={34} color={COLORS.labelFaint} />
+          <Text style={styles.noMapTitle}>No Google Maps key in this build</Text>
+          <Text style={styles.noMapBody}>
+            Android refuses to draw the map without one, so it's switched off here rather than crashing the app.
+            Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as an EAS environment variable and rebuild — see app/README.md.
+            Everything else, including the saved places below, works without it.
+          </Text>
+        </View>
+      ) : (
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={{ latitude: center.lat, longitude: center.lng, latitudeDelta: 0.08, longitudeDelta: 0.08 }}
-        showsUserLocation
+        // Only once a fix actually exists — asking for the blue dot without
+        // granted location permission is its own crash on some devices.
+        showsUserLocation={!!state.location}
         showsMyLocationButton={false}
       >
         {stops.length > 1 && (
@@ -89,6 +103,7 @@ export default function MapScreen() {
           </Marker>
         ))}
       </MapView>
+      )}
 
       {state.offline && <View style={styles.offlineTint} pointerEvents="none" />}
 
@@ -176,6 +191,9 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#eceae4' },
+  noMap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34, gap: 10, backgroundColor: '#eceae4' },
+  noMapTitle: { fontSize: 17, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.inkSoft, textAlign: 'center' },
+  noMapBody: { fontSize: 13, lineHeight: 19, color: COLORS.label, textAlign: 'center', fontFamily: FONT_SERIF_REGULAR },
   offlineTint: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(243,242,242,0.35)' },
   savedDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2.5, borderColor: '#fff' },
   stopPin: {

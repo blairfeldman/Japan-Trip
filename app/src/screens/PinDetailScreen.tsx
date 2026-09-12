@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppState } from '../store/AppState';
 import { DAYS } from '../data/trip';
@@ -36,10 +36,16 @@ export default function PinDetailScreen() {
   ];
 
   const latest = pin.clips[pin.clips.length - 1];
+  const cover = pin.clips.map((c) => c.thumbnailUrl).filter(Boolean)[0];
 
   return (
     <ScrollView style={styles.screen}>
-      <PlaceholderBanner height={190} caption="TikTok cover frame" onBack={() => navigation.goBack()} />
+      <PlaceholderBanner
+        height={190}
+        caption={cover ? undefined : 'no cover frame saved'}
+        imageUrl={cover}
+        onBack={() => navigation.goBack()}
+      />
       <View style={{ padding: 20, paddingTop: 18, paddingBottom: 40 }}>
         <View style={styles.metaRow}>
           <View style={[styles.dot, { backgroundColor: CATEGORY[pin.cat].color }]} />
@@ -72,7 +78,11 @@ export default function PinDetailScreen() {
             onPress={() => latest.sourceUrl && Linking.openURL(latest.sourceUrl)}
             style={({ pressed }) => [styles.clipCard, pressed && { backgroundColor: COLORS.hover }]}
           >
-            <View style={styles.clipThumb} />
+            {latest.thumbnailUrl ? (
+              <Image source={{ uri: latest.thumbnailUrl }} style={styles.clipThumb} resizeMode="cover" />
+            ) : (
+              <View style={styles.clipThumb} />
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.clipHandle}>{latest.handle}</Text>
               <Text style={styles.clipCaption} numberOfLines={2}>

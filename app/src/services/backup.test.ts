@@ -5,6 +5,7 @@
  */
 import { mergeSynced, parseBackup, buildBackup, findSamePlace, findPinBySourceUrl, SyncedState } from './backup';
 import { describeSharedLink } from '../utils/shareLink';
+import { placeNameFromCaption } from './shareParse';
 import { SavedPin, ItineraryEvent } from '../types';
 
 let pass = 0, fail = 0;
@@ -126,6 +127,18 @@ console.log('\n-- saving from a shared link (no backend) --');
   const elsewhere = pin({ id: 'p3', lat: 34.6937, lng: 135.5023, address: 'Osaka' });
   check('saving a place already pinned finds it', findSamePlace([saved], again)?.id === 'p1');
   check('a genuinely new place does not', findSamePlace([saved], elsewhere) === undefined);
+}
+
+console.log('\n-- caption -> place name --');
+{
+  const c = placeNameFromCaption;
+  check('strips hashtags', c('Ichiran Shibuya #tokyo #ramen #japan') === 'Ichiran Shibuya', JSON.stringify(c('Ichiran Shibuya #tokyo #ramen #japan')));
+  check('strips emoji', c('Ichiran Shibuya 🍜🔥') === 'Ichiran Shibuya', JSON.stringify(c('Ichiran Shibuya 🍜🔥')));
+  check('strips mentions and urls', c('@foodie Ichiran https://x.co/a') === 'Ichiran', JSON.stringify(c('@foodie Ichiran https://x.co/a')));
+  check('picks the most descriptive segment', c('Best ramen | Ichiran Shibuya Tokyo') === 'Ichiran Shibuya Tokyo', JSON.stringify(c('Best ramen | Ichiran Shibuya Tokyo')));
+  check('keeps Japanese text', c('一蘭 渋谷店 #ramen') === '一蘭 渋谷店', JSON.stringify(c('一蘭 渋谷店 #ramen')));
+  check('empty caption is empty, not a crash', c('') === '' && c('#a #b 🍜') === '');
+  check('caps runaway captions', c('x'.repeat(300)).length <= 80);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -6,6 +6,7 @@ import { useAppState } from '../store/AppState';
 import { api, backendConfigured } from '../services/api';
 import { findPinBySourceUrl } from '../services/backup';
 import { describeSharedLink } from '../utils/shareLink';
+import { parseSharedVideo, ParsedShare } from '../services/shareParse';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { PrimaryButton, SecondaryButton, CategoryDot } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -35,6 +36,7 @@ export default function ShareSheetScreen() {
   const [duplicateOf, setDuplicateOf] = useState<SavedPin | null>(null);
   const [savedPin, setSavedPin] = useState<SavedPin | null>(null);
   const [pickedCat, setPickedCat] = useState<Category>('food');
+  const [parsed, setParsed] = useState<ParsedShare | null>(null);
 
   useEffect(() => {
     if (!backendConfigured) {
@@ -44,10 +46,19 @@ export default function ShareSheetScreen() {
       if (already) {
         setDuplicateOf(already);
         setStatus('duplicate');
-      } else {
-        setStatus('no-backend');
+        return;
       }
-      return;
+      // TikTok's oEmbed is public and keyless, so the caption (which usually
+      // names the place) can still be read without any backend at all.
+      let cancelled = false;
+      parseSharedVideo(url).then((p) => {
+        if (cancelled) return;
+        setParsed(p);
+        setStatus('no-backend');
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     api.analyzeShareUrl(url).then((res) => {
       if (!res) {
@@ -94,16 +105,42 @@ export default function ShareSheetScreen() {
 
         {status === 'no-backend' && (
           <View style={{ paddingVertical: 4 }}>
-            <Text style={styles.bodyText}>
-              No parsing service is set up, so the place name can't be read out of this {link.platform} post
-              automatically. Add it by hand and the link stays attached to the pin — share it again, or save another
-              video of the same place, and it'll merge instead of making a second pin.
-            </Text>
-            <Text style={styles.linkLine} numberOfLines={2}>
-              {link.handle} · {url}
-            </Text>
+            {parsed ? (
+              <>
+                <Text style={styles.bodyText}>
+                  Read the caption off this {link.platform} post. It usually names the place — check it, then add the
+                  address on the next screen.
+                </Text>
+                <View style={styles.parsedCard}>
+                  <Text style={styles.parsedName}>{parsed.suggestedName || '(no caption)'}</Text>
+                  <Text style={styles.parsedMeta}>{parsed.handle}</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.bodyText}>
+                  The place name couldn't be read out of this {link.platform} post
+                  {link.platform === 'Instagram' ? " — Instagram doesn't allow it without an account" : ''}. Add it by
+                  hand and the link stays attached to the pin — share it again, or save another video of the same
+                  place, and it'll merge instead of making a second pin.
+                </Text>
+                <Text style={styles.linkLine} numberOfLines={2}>
+                  {link.handle} · {url}
+                </Text>
+              </>
+            )}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
-              <PrimaryButton label="Add this pin by hand" onPress={() => navigation.replace('AddPin', { sourceUrl: url })} />
+              <PrimaryButton
+                label={parsed ? 'Add the address' : 'Add this pin by hand'}
+                onPress={() =>
+                  navigation.replace('AddPin', {
+                    sourceUrl: url,
+                    prefillName: parsed?.suggestedName,
+                    handle: parsed?.handle,
+                    thumbnailUrl: parsed?.thumbnailUrl,
+                  })
+                }
+              />
               <SecondaryButton label="Cancel" onPress={() => navigation.goBack()} />
             </View>
           </View>
@@ -198,6 +235,9 @@ const styles = StyleSheet.create({
   parsingTitle: { fontSize: 17, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   parsingSub: { fontSize: 13.5, color: COLORS.label, marginTop: 2, fontFamily: FONT_SERIF_REGULAR },
   bodyText: { fontSize: 14.5, lineHeight: 21, color: COLORS.inkMuted, fontFamily: FONT_SERIF_REGULAR },
+  parsedCard: { backgroundColor: '#fff', borderLeftWidth: 3, borderLeftColor: COLORS.accent, padding: 13, marginTop: 14 },
+  parsedName: { fontSize: 17, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
+  parsedMeta: { fontSize: 12.5, color: COLORS.label, marginTop: 3, fontFamily: FONT_SERIF_REGULAR },
   linkLine: { fontSize: 12, lineHeight: 17, color: COLORS.labelFaint, marginTop: 10, fontFamily: FONT_SERIF_REGULAR },
   dupeCallout: { backgroundColor: COLORS.magentaTint, borderLeftWidth: 3, borderLeftColor: COLORS.magenta, padding: 13, marginBottom: 16 },
   dupeLabel: { fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.magentaDeep, marginBottom: 5, fontFamily: FONT_SERIF_REGULAR },

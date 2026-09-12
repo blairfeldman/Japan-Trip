@@ -54,6 +54,8 @@ export interface SavedPin {
     savedBy: 'B' | 'Y';
     savedAt: string;
     sourceUrl?: string;
+    /** Cover frame from the video, when the share could be read. */
+    thumbnailUrl?: string;
   }[];
   createdAt: string;
 }

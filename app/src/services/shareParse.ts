@@ -1,0 +1,91 @@
+import { describeSharedLink } from '../utils/shareLink';
+
+/**
+ * Best-effort read of a shared video, using TikTok's public oEmbed endpoint —
+ * no API key, no account, no backend. It returns the caption, the author and a
+ * cover image, which is most of what you need to save a place: the caption
+ * usually names it.
+ *
+ * This is deliberately *not* the parsing pipeline in `server/`. That one reads
+ * on-screen text and pinned comments and asks a model for the actual place.
+ * This just hands you a filled-in name field you can correct.
+ *
+ * Instagram is not supported: its oEmbed has required an access token since
+ * 2020, so IG links fall back to being typed in by hand.
+ *
+ * Every failure path returns null — if TikTok changes or blocks this, the app
+ * quietly goes back to the manual flow rather than breaking.
+ */
+
+export interface ParsedShare {
+  caption: string;
+  suggestedName: string;
+  handle: string;
+  thumbnailUrl?: string;
+}
+
+const OEMBED_TIMEOUT_MS = 7000;
+
+/**
+ * Strips a TikTok caption down to something usable as a place name: hashtags,
+ * links, emoji and @mentions carry no information here and just have to be
+ * deleted by hand otherwise.
+ */
+export function placeNameFromCaption(caption: string): string {
+  const cleaned = caption
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/#[^\s#]+/g, ' ')
+    .replace(/@[A-Za-z0-9._]+/g, ' ')
+    .replace(/[\u{1F000}-\u{1FAFF}]|[\u{2190}-\u{2BFF}]|[\u{FE00}-\u{FE0F}]|[\u{1F1E6}-\u{1F1FF}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Captions often run "Best ramen in Tokyo | Ichiran Shibuya" or use a dash.
+  // The longest segment is the most descriptive one more often than not.
+  const segments = cleaned
+    .split(/[|·•–—]|(?:\s-\s)/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const best = segments.sort((a, b) => b.length - a.length)[0] ?? cleaned;
+
+  return best.slice(0, 80).trim();
+}
+
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function parseSharedVideo(rawUrl: string): Promise<ParsedShare | null> {
+  const link = describeSharedLink(rawUrl);
+  if (link.platform !== 'TikTok') return null;
+
+  try {
+    const res = await fetchWithTimeout(
+      `https://www.tiktok.com/oembed?url=${encodeURIComponent(link.url)}`,
+      OEMBED_TIMEOUT_MS
+    );
+    if (!res.ok) return null;
+    const json: any = await res.json();
+
+    const caption = typeof json?.title === 'string' ? json.title : '';
+    const suggestedName = placeNameFromCaption(caption);
+    if (!suggestedName && !json?.author_unique_id) return null;
+
+    return {
+      caption,
+      suggestedName,
+      handle: json?.author_unique_id ? `@${json.author_unique_id}` : link.handle,
+      thumbnailUrl: typeof json?.thumbnail_url === 'string' ? json.thumbnail_url : undefined,
+    };
+  } catch {
+    // Offline, blocked, rate-limited, or the endpoint changed shape — the
+    // caller falls back to the by-hand flow.
+    return null;
+  }
+}

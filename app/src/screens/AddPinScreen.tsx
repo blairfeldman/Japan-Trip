@@ -59,7 +59,16 @@ export default function AddPinScreen() {
   function onSave() {
     if (!name.trim() || !matched) return;
     const clips: SavedPin['clips'] = shared
-      ? [{ handle: shared.handle, caption: name.trim(), savedBy: 'B', savedAt: new Date().toISOString(), sourceUrl: shared.url }]
+      ? [
+          {
+            handle: route.params?.handle ?? shared.handle,
+            caption: name.trim(),
+            savedBy: 'B',
+            savedAt: new Date().toISOString(),
+            sourceUrl: shared.url,
+            thumbnailUrl: route.params?.thumbnailUrl,
+          },
+        ]
       : [];
     const pin: SavedPin = {
       id: newId('p'),
@@ -110,7 +119,7 @@ export default function AddPinScreen() {
         <View style={styles.sharedCard}>
           <Icon name="PlayCircle" size={17} color={COLORS.accent} />
           <Text style={styles.sharedText} numberOfLines={2}>
-            From {shared.platform} · {shared.handle} — the link stays attached to this pin.
+            From {shared.platform} · {route.params?.handle ?? shared.handle} — the link stays attached to this pin.
           </Text>
         </View>
       )}

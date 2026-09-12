@@ -22,7 +22,7 @@ provision on your behalf. Here's the honest breakdown:
 | Walking ETA for leave-by alerts | ⚠️ Live *estimate* (straight-line distance ÷ avg. walking speed) unless you add a Google Directions key — see below |
 | Phrase audio + slow/normal + word highlight | ✅ Live — on-device TTS via `expo-speech`, real `ja-JP` voice |
 | Add Pin → address matching | ✅ Live — [Nominatim](https://nominatim.org/) geocoding, keyless |
-| Google Maps tiles on the Map tab | ⚠️ Needs **your** Google Maps API key (see below) — blank/gray without one |
+| Google Maps tiles on the Map tab | ⚠️ Needs **your** Google Maps API key (see below). Expo Go uses its own; a standalone build without one shows an explanation instead of the map |
 | Saved pins, day plans and Book it / Skip decisions surviving a restart | ✅ Live — persisted to `AsyncStorage`, see `src/services/persist.ts` |
 | Backing those up, and merging two phones' saves | ✅ Live — export/import a JSON file from the Inbox screen, no server needed. See below |
 | Shared pins, forwarded-booking inbox sync | ⚠️ Needs the backend in `server/` deployed and `EXPO_PUBLIC_API_BASE_URL` set — falls back to on-device-only storage without it |
@@ -138,8 +138,15 @@ Studio, the Android SDK and a JDK installed on Windows first.
 
    `app.config.js` reads it from there and compiles it into the native build,
    and `src/services/location.ts` uses the same value for the Directions
-   calls. Set no key and the field is simply absent — you get Expo Go's own
-   map tiles, and straight-line walking estimates.
+   calls.
+
+   **In a standalone build this is not optional.** `react-native-maps` does
+   not degrade without it: a `PROVIDER_GOOGLE` map with no
+   `com.google.android.geo.API_KEY` in the manifest throws a fatal "API key
+   not found" and takes the app down. Expo Go hides this because it supplies
+   its own key. The Map tab therefore checks for the key and shows an
+   explanation instead of mounting the map when it's missing, so a keyless
+   build is merely limited rather than broken — but you still want the key.
 2. **Backend** (shared pins, inbox, TikTok/IG parsing) — deploy `server/`
    somewhere reachable from your phone and set `EXPO_PUBLIC_API_BASE_URL`.
    See `server/README.md` for what that unlocks and what it in turn needs.

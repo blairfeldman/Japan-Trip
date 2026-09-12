@@ -19,6 +19,6 @@ export type TabParamList = {
 
 export type RootStackParamList = {
   Tabs: undefined;
-  AddPin: { prefillName?: string; prefillAddress?: string; sourceUrl?: string } | undefined;
+  AddPin: { prefillName?: string; prefillAddress?: string; sourceUrl?: string; handle?: string; thumbnailUrl?: string } | undefined;
   ShareSheet: { url: string } | undefined;
 };
