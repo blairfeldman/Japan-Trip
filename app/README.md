@@ -129,12 +129,45 @@ Studio, the Android SDK and a JDK installed on Windows first.
 
 ## Setup you need to do yourself
 
-1. **Google Maps API key** (Map tab tiles + optional Directions ETAs) — get
-   one at [Google Cloud Console](https://developers.google.com/maps/documentation/android-sdk/get-api-key),
-   enable the **Maps SDK for Android** (and **Directions API** if you want
-   exact walking times instead of the straight-line estimate). It goes in
-   **one** place now:
-   - `.env` → `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`
+1. **Google Maps API key** (Map tab tiles + optional Directions ETAs).
+
+   At [console.cloud.google.com](https://console.cloud.google.com/):
+
+   1. Create a project (any name).
+   2. **Enable billing on it.** Google won't let you use the Maps SDK at all
+      without a billing account, so a card is required. Mobile map loads
+      themselves are *unlimited at no charge* — the per-1,000 pricing you'll
+      read about is the web JavaScript SKU, not the Android SDK. Directions
+      calls are billable but have a free monthly allowance far above what two
+      people walking around Japan will use.
+   3. **APIs & Services → Library**: enable **Maps SDK for Android**. Add
+      **Directions API** too if you want exact walking times instead of the
+      straight-line estimate.
+   4. **APIs & Services → Credentials → Create credentials → API key.** Copy it.
+   5. Restrict it (the key ships inside the APK, so anyone can extract it):
+      - *API restrictions* → limit to the two APIs above.
+      - *Application restrictions* → **Android apps**, then add package name
+        `com.blairfeldman.japantrip` with the signing SHA-1 below.
+
+   **Getting the SHA-1 when EAS holds your keystore.** EAS generated and
+   stores the signing key, so the fingerprint isn't on your machine and
+   `keytool` won't find it. Ask EAS:
+
+   ```powershell
+   npx.cmd eas-cli credentials -p android
+   ```
+
+   Pick your build profile, then the Keystore entry — it prints the SHA-1
+   certificate fingerprint. Paste that into the Android restriction.
+
+   Then set the key **once**, as an EAS environment variable (see "Building a
+   real APK" below) and in `.env` for Expo Go / local runs.
+
+   > If the map comes back grey after restricting the key, the restriction is
+   > wrong — usually the SHA-1 of a different build profile, since the
+   > `development` and `preview` profiles can hold separate keystores. A grey
+   > map means the key was rejected; a missing key is the crash case the Map
+   > tab now guards against.
 
    `app.config.js` reads it from there and compiles it into the native build,
    and `src/services/location.ts` uses the same value for the Directions
