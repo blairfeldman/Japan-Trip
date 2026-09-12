@@ -12,6 +12,7 @@ import { SourceSerif4_400Regular } from '@expo-google-fonts/source-serif-4/400Re
 import { SourceSerif4_600SemiBold } from '@expo-google-fonts/source-serif-4/600SemiBold';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { AppStateProvider } from './src/store/AppState';
+import { describeSharedLink } from './src/utils/shareLink';
 import RootNavigator from './src/navigation/RootNavigator';
 import { COLORS } from './src/theme';
 import { isExpoGo } from './src/env';
@@ -23,10 +24,25 @@ function ShareIntentBridge() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
 
   useEffect(() => {
-    if (hasShareIntent && (shareIntent.webUrl || shareIntent.text)) {
-      navigationRef.current?.navigate('ShareSheet', { url: shareIntent.webUrl ?? shareIntent.text ?? '' });
-      resetShareIntent();
+    if (!hasShareIntent || !(shareIntent.webUrl || shareIntent.text)) return;
+
+    const url = shareIntent.webUrl ?? '';
+    const text = shareIntent.text ?? '';
+    const platform = describeSharedLink(url || text).platform;
+
+    // A TikTok/Instagram link is a place to pin; anything else shared as text
+    // is almost certainly a booking confirmation from a mail app, which the
+    // Inbox can read. Sending an email body to the video share sheet just
+    // produced "couldn't read this" and lost the text.
+    if (platform === 'TikTok' || platform === 'Instagram') {
+      navigationRef.current?.navigate('ShareSheet', { url: url || text });
+    } else {
+      navigationRef.current?.navigate('Tabs', {
+        screen: 'DaysTab',
+        params: { screen: 'Inbox', params: { sharedText: text || url } },
+      });
     }
+    resetShareIntent();
   }, [hasShareIntent]);
 
   return null;

@@ -5,7 +5,7 @@ export type CommonStackParamList = {
 
 export type NowStackParamList = CommonStackParamList & { Now: undefined };
 export type MapStackParamList = CommonStackParamList & { Map: undefined };
-export type DaysStackParamList = CommonStackParamList & { Days: undefined; Inbox: undefined };
+export type DaysStackParamList = CommonStackParamList & { Days: undefined; Inbox: { sharedText?: string } | undefined };
 export type MoneyStackParamList = { Money: undefined; Converter: undefined };
 export type PhrasesStackParamList = { Phrases: undefined; PhrasePractice: { situationId: string } };
 

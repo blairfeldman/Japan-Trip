@@ -27,7 +27,8 @@ provision on your behalf. Here's the honest breakdown:
 | Backing those up, and merging two phones' saves | ✅ Live — export/import a JSON file from the Inbox screen, no server needed. See below |
 | Shared pins, forwarded-booking inbox sync | ⚠️ Needs the backend in `server/` deployed and `EXPO_PUBLIC_API_BASE_URL` set — falls back to on-device-only storage without it |
 | "Share to app" from TikTok/Instagram | ✅ Live in a real build (not Expo Go). Shared links attach to the pin, and re-sharing a clip or saving a place that's already pinned merges instead of duplicating. The caption, author and cover frame are read from the services' own public oEmbed endpoints — no key, no account, no backend — and offered as a name to correct. Reading the place out of *on-screen text and pinned comments* is what still needs `server/` |
-| Forwarding real booking emails to `japan@trip.mail` | ⚠️ That address is a placeholder from the design — needs your own domain + inbound-email provider, see `server/README.md` |
+| Getting a booking into the app | ✅ Live — paste a confirmation into the Inbox, or share it straight from your mail app. Date, time and confirmation number are read on-device, and the date is matched to a trip day. See below |
+| Forwarding real booking emails to `japan@trip.mail` | ⚠️ That address is a placeholder from the design — needs your own domain + inbound-email provider, see `server/README.md`. The paste/share route above covers the same ground without it |
 
 Nothing here fakes success: where a real integration isn't configured, the
 UI says so (e.g. the Share Sheet explicitly says no parsing backend is
@@ -225,6 +226,33 @@ npm.cmd test
 
 This is merge-on-swap, not live sync — you each see the other's additions
 when you exchange a file, not the moment they're saved.
+
+## Getting bookings in without the email address
+
+`japan@trip.mail` needs a deployed backend and a real inbound-email domain, so
+until that exists there are two working routes, both entirely on-device:
+
+- **Share it.** Open the confirmation in Gmail (or any mail app) → Share →
+  Japan Trip. Text shared to the app that isn't a TikTok/Instagram link is
+  treated as a booking and lands in the Inbox, already parsed.
+- **Paste it.** Days → envelope → *Paste or add a booking*, and paste the whole
+  email.
+
+Either way `src/services/bookingParse.ts` pulls out the kind (flight, train,
+restaurant, hotel, activity), the time, the confirmation number, and whether it
+was prepaid — then places it on the right day of the trip.
+
+The date matching is the useful trick: rather than trying to parse dates
+properly across `Oct 6`, `10/6`, `6 Oct` and `10月6日`, it collects every
+plausible month/day pair in the text and keeps whichever one lands on an actual
+day of *this* trip. Dates that aren't trip days — the date the mail was sent, a
+price, a footer — drop out by themselves. Covered by
+`src/services/bookingParse.test.ts`.
+
+It's regex, not a language model, so a confirmation written entirely in
+Japanese prose may only yield the date. The screen shows what it found and lets
+you override the day before adding, and flags "no trip date found" rather than
+guessing.
 
 ## Notes on the layout
 
