@@ -68,7 +68,7 @@ function hasCoords(p: SavedPin): boolean {
 }
 
 /** Same physical place? Coordinates decide; the address only breaks a near tie. */
-function isSamePlace(a: SavedPin, b: SavedPin): boolean {
+export function isSamePlace(a: SavedPin, b: SavedPin): boolean {
   const sameAddress = normalizeAddress(a.address) === normalizeAddress(b.address);
   if (!hasCoords(a) || !hasCoords(b)) return sameAddress;
   const meters = distanceMeters({ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng });
@@ -172,6 +172,17 @@ export function mergeSynced(local: SyncedState, incoming: SyncedState): { state:
   }
 
   return { state: { pins, inbox, extraEvents, decisions }, summary };
+}
+
+/** The already-saved pin for this place, if there is one. */
+export function findSamePlace(pins: SavedPin[], candidate: SavedPin): SavedPin | undefined {
+  return pins.find((p) => p.id === candidate.id || isSamePlace(p, candidate));
+}
+
+/** The pin already carrying this shared link, if any. */
+export function findPinBySourceUrl(pins: SavedPin[], url: string): SavedPin | undefined {
+  if (!url) return undefined;
+  return pins.find((p) => p.clips.some((c) => c.sourceUrl === url));
 }
 
 export function buildBackup(state: SyncedState): BackupFile {

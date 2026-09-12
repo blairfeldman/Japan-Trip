@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import { Icon } from '../components/Icon';
 import { CategoryDot } from '../components/ui';
 import { Category, SavedPin } from '../types';
 import { geocodeAddress, api } from '../services/api';
+import { findSamePlace } from '../services/backup';
+import { describeSharedLink } from '../utils/shareLink';
 import { newId } from '../utils/id';
 import { TRIP } from '../data/trip';
 
@@ -15,8 +17,10 @@ export default function AddPinScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
-  const { dispatch } = useAppState();
+  const { state, dispatch } = useAppState();
 
+  // Set when this form was opened from a shared TikTok/Instagram link.
+  const shared = route.params?.sourceUrl ? describeSharedLink(route.params.sourceUrl) : null;
   const [name, setName] = useState(route.params?.prefillName ?? '');
   const [address, setAddress] = useState(route.params?.prefillAddress ?? '');
   const [matched, setMatched] = useState<{ lat: number; lng: number; displayName: string } | null>(null);
@@ -25,6 +29,23 @@ export default function AddPinScreen() {
   const [cat, setCat] = useState<Category>('food');
   const [note, setNote] = useState('');
   const [visible, setVisible] = useState(true);
+
+  // Previewed before saving so "Save" is never a surprise merge.
+  const willMerge = useMemo(() => {
+    if (!matched) return undefined;
+    return findSamePlace(state.pins, {
+      id: '',
+      name: name.trim(),
+      cat,
+      address: matched.displayName,
+      lat: matched.lat,
+      lng: matched.lng,
+      sub: '',
+      who: 'B',
+      clips: [],
+      createdAt: new Date().toISOString(),
+    });
+  }, [matched, state.pins, name, cat]);
 
   async function onAddressBlur() {
     if (!address.trim()) return;
@@ -37,6 +58,9 @@ export default function AddPinScreen() {
 
   function onSave() {
     if (!name.trim() || !matched) return;
+    const clips: SavedPin['clips'] = shared
+      ? [{ handle: shared.handle, caption: name.trim(), savedBy: 'B', savedAt: new Date().toISOString(), sourceUrl: shared.url }]
+      : [];
     const pin: SavedPin = {
       id: newId('p'),
       name: name.trim(),
@@ -47,9 +71,19 @@ export default function AddPinScreen() {
       sub: note.trim() || CATEGORY[cat].label,
       who: visible ? 'both' : 'B',
       note: note.trim() || undefined,
-      clips: [],
+      clips,
       createdAt: new Date().toISOString(),
     };
+
+    // Same dedupe rule the backup merge uses: if this place is already pinned,
+    // hang the new clip off it instead of creating a second pin for it.
+    const existing = findSamePlace(state.pins, pin);
+    if (existing) {
+      if (clips.length) dispatch({ type: 'ADD_CLIP_TO_PIN', pinId: existing.id, clip: clips[0] });
+      navigation.goBack();
+      return;
+    }
+
     dispatch({ type: 'ADD_PIN', pin });
     api.createPin(pin);
     navigation.goBack();
@@ -71,6 +105,15 @@ export default function AddPinScreen() {
           <Text style={styles.saveText}>Save</Text>
         </Pressable>
       </View>
+
+      {shared && (
+        <View style={styles.sharedCard}>
+          <Icon name="PlayCircle" size={17} color={COLORS.accent} />
+          <Text style={styles.sharedText} numberOfLines={2}>
+            From {shared.platform} · {shared.handle} — the link stays attached to this pin.
+          </Text>
+        </View>
+      )}
 
       <Text style={styles.label}>Place</Text>
       <TextInput value={name} onChangeText={setName} placeholder="Place name" placeholderTextColor={COLORS.labelFaint} style={styles.placeInput} />
@@ -126,6 +169,13 @@ export default function AddPinScreen() {
         style={styles.noteInput}
       />
 
+      {matched && willMerge && (
+        <Text style={styles.mergeNote}>
+          {willMerge.name} is already pinned at this address — saving adds {shared ? 'this clip' : 'your note'} to it
+          instead of making a second pin.
+        </Text>
+      )}
+
       <View style={styles.visRow}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{TRIP.travelers[0].initial}</Text>
@@ -155,6 +205,9 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: COLORS.ink, backgroundColor: COLORS.hover },
   chipText: { fontSize: 13.5, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
   noteInput: { borderWidth: 1, borderColor: COLORS.border, padding: 12, minHeight: 86, fontSize: 15.5, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR, marginBottom: 24, textAlignVertical: 'top' },
+  sharedCard: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: COLORS.accentTint, padding: 11, marginBottom: 20 },
+  sharedText: { flex: 1, fontSize: 13, lineHeight: 18, color: COLORS.accentTintText, fontFamily: FONT_SERIF_REGULAR },
+  mergeNote: { fontSize: 13, lineHeight: 18, color: COLORS.magentaDeep, marginTop: -10, marginBottom: 20, fontFamily: FONT_SERIF_REGULAR },
   visRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: COLORS.hairline, paddingTop: 16 },
   avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.link, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 12, fontWeight: '600' },

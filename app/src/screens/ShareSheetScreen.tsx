@@ -4,6 +4,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { api, backendConfigured } from '../services/api';
+import { findPinBySourceUrl } from '../services/backup';
+import { describeSharedLink } from '../utils/shareLink';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { PrimaryButton, SecondaryButton, CategoryDot } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -15,8 +17,9 @@ export default function ShareSheetScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const route = useRoute<any>();
-  const { dispatch } = useAppState();
+  const { state, dispatch } = useAppState();
   const url: string = route.params?.url ?? '';
+  const link = describeSharedLink(url);
 
   /**
    * PinDetail lives inside the Map tab's stack, not on the root stack this
@@ -35,7 +38,15 @@ export default function ShareSheetScreen() {
 
   useEffect(() => {
     if (!backendConfigured) {
-      setStatus('no-backend');
+      // No parsing service, but we can still tell whether this exact clip is
+      // already on a pin — that's the dedupe half, and it needs no server.
+      const already = findPinBySourceUrl(state.pins, url);
+      if (already) {
+        setDuplicateOf(already);
+        setStatus('duplicate');
+      } else {
+        setStatus('no-backend');
+      }
       return;
     }
     api.analyzeShareUrl(url).then((res) => {
@@ -84,11 +95,15 @@ export default function ShareSheetScreen() {
         {status === 'no-backend' && (
           <View style={{ paddingVertical: 4 }}>
             <Text style={styles.bodyText}>
-              No parsing backend is configured yet, so this link can't be read automatically. Add the pin by hand instead —
-              it'll be ready to dedupe automatically next time you share the same place.
+              No parsing service is set up, so the place name can't be read out of this {link.platform} post
+              automatically. Add it by hand and the link stays attached to the pin — share it again, or save another
+              video of the same place, and it'll merge instead of making a second pin.
+            </Text>
+            <Text style={styles.linkLine} numberOfLines={2}>
+              {link.handle} · {url}
             </Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
-              <PrimaryButton label="Add this pin by hand" onPress={() => navigation.replace('AddPin', {})} />
+              <PrimaryButton label="Add this pin by hand" onPress={() => navigation.replace('AddPin', { sourceUrl: url })} />
               <SecondaryButton label="Cancel" onPress={() => navigation.goBack()} />
             </View>
           </View>
@@ -98,7 +113,7 @@ export default function ShareSheetScreen() {
           <View style={{ paddingVertical: 4 }}>
             <Text style={styles.bodyText}>Couldn't reach the parsing service. Try again, or add the pin by hand.</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
-              <PrimaryButton label="Add by hand" onPress={() => navigation.replace('AddPin', {})} />
+              <PrimaryButton label="Add by hand" onPress={() => navigation.replace('AddPin', { sourceUrl: url })} />
               <SecondaryButton label="Close" onPress={() => navigation.goBack()} />
             </View>
           </View>
@@ -123,7 +138,11 @@ export default function ShareSheetScreen() {
               <PrimaryButton
                 label="Add this clip to the pin"
                 onPress={() => {
-                  dispatch({ type: 'ADD_CLIP_TO_PIN', pinId: duplicateOf.id, clip: { handle: '@shared', caption: url, savedBy: 'B', savedAt: new Date().toISOString(), sourceUrl: url } });
+    dispatch({
+                    type: 'ADD_CLIP_TO_PIN',
+                    pinId: duplicateOf.id,
+                    clip: { handle: link.handle, caption: url, savedBy: 'B', savedAt: new Date().toISOString(), sourceUrl: url },
+                  });
                   openPin(duplicateOf.id);
                 }}
               />
@@ -179,6 +198,7 @@ const styles = StyleSheet.create({
   parsingTitle: { fontSize: 17, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   parsingSub: { fontSize: 13.5, color: COLORS.label, marginTop: 2, fontFamily: FONT_SERIF_REGULAR },
   bodyText: { fontSize: 14.5, lineHeight: 21, color: COLORS.inkMuted, fontFamily: FONT_SERIF_REGULAR },
+  linkLine: { fontSize: 12, lineHeight: 17, color: COLORS.labelFaint, marginTop: 10, fontFamily: FONT_SERIF_REGULAR },
   dupeCallout: { backgroundColor: COLORS.magentaTint, borderLeftWidth: 3, borderLeftColor: COLORS.magenta, padding: 13, marginBottom: 16 },
   dupeLabel: { fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.magentaDeep, marginBottom: 5, fontFamily: FONT_SERIF_REGULAR },
   dupeText: { fontSize: 15, lineHeight: 21, color: COLORS.inkSoft, fontFamily: FONT_SERIF_REGULAR },

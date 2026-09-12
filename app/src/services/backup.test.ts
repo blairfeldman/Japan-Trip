@@ -3,7 +3,8 @@
  * whether combining two phones' backups keeps everything or silently drops it,
  * which is not something you want to find out by losing a week of pins.
  */
-import { mergeSynced, parseBackup, buildBackup, SyncedState } from './backup';
+import { mergeSynced, parseBackup, buildBackup, findSamePlace, findPinBySourceUrl, SyncedState } from './backup';
+import { describeSharedLink } from '../utils/shareLink';
 import { SavedPin, ItineraryEvent } from '../types';
 
 let pass = 0, fail = 0;
@@ -103,6 +104,28 @@ console.log('\n-- parse guards --');
   check('rejects non-JSON', rejects('not json'));
   check('rejects other JSON', rejects('{"hello":1}'));
   check('rejects newer version', rejects(JSON.stringify({ kind: 'japan-trip-backup', version: 99, state: { pins: [], extraEvents: [] } })));
+}
+
+console.log('\n-- saving from a shared link (no backend) --');
+{
+  const t = describeSharedLink('https://www.tiktok.com/@tokyo.eats/video/12345');
+  check('reads the TikTok handle off the URL', t.platform === 'TikTok' && t.handle === '@tokyo.eats', JSON.stringify(t));
+  check('short tiktok links still identified', describeSharedLink('https://vm.tiktok.com/ZAbCd/').platform === 'TikTok');
+  check('instagram reels identified', describeSharedLink('https://www.instagram.com/reel/XYZ/').platform === 'Instagram');
+  check('unknown link degrades', describeSharedLink('https://example.com/x').platform === 'link');
+}
+{
+  const saved = pin({ id: 'p1', clips: [{ handle: '@a', caption: 'c', savedBy: 'B' as const, savedAt: 't', sourceUrl: 'https://tt/1' }] });
+  check('re-sharing the same clip finds its pin', findPinBySourceUrl([saved], 'https://tt/1')?.id === 'p1');
+  check('a new clip finds nothing', findPinBySourceUrl([saved], 'https://tt/2') === undefined);
+  check('empty url finds nothing', findPinBySourceUrl([saved], '') === undefined);
+}
+{
+  const saved = pin({ id: 'p1', lat: 35.6595, lng: 139.7004, address: 'Shibuya' });
+  const again = pin({ id: 'p2', lat: 35.6596, lng: 139.7005, address: 'Shibuya' });
+  const elsewhere = pin({ id: 'p3', lat: 34.6937, lng: 135.5023, address: 'Osaka' });
+  check('saving a place already pinned finds it', findSamePlace([saved], again)?.id === 'p1');
+  check('a genuinely new place does not', findSamePlace([saved], elsewhere) === undefined);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
