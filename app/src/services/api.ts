@@ -1,44 +1,95 @@
-import { SavedPin, InboxBooking } from '../types';
+import { API_BASE_URL, API_TOKEN, syncConfigured } from '../env';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
+/**
+ * Thin client for `backend/`. Every call returns null rather than throwing on
+ * a transport failure: the app is local-first, so an unreachable or
+ * unconfigured backend has to be an ordinary, quiet state — not an error path
+ * the UI has to handle.
+ */
+
+export { syncConfigured };
+
+/** One record as the server stores it. `body` holds our own record shape. */
+export interface RemoteItem {
+  id: string;
+  seq: number;
+  kind: string;
+  body: any;
+  author: string;
+  status: string;
+  source_url: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted: boolean;
+}
+
+export interface ItemPage {
+  items: RemoteItem[];
+  next_seq: number;
+  has_more: boolean;
+}
+
+const TIMEOUT_MS = 15000;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T | null> {
-  if (!API_BASE) return null; // no backend configured — caller falls back to local state
+  if (!syncConfigured) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
-      headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${API_TOKEN}`,
+        ...(init?.headers ?? {}),
+      },
     });
     if (!res.ok) return null;
+    if (res.status === 204) return {} as T;
     return (await res.json()) as T;
   } catch {
-    return null; // backend unreachable (offline, not deployed, etc.) — degrade gracefully
+    // Offline, timed out, DNS gone, backend asleep — all the same to the app.
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-export const backendConfigured = !!API_BASE;
-
 export const api = {
-  listPins: () => req<SavedPin[]>('/pins'),
-  createPin: (pin: SavedPin) => req<SavedPin>('/pins', { method: 'POST', body: JSON.stringify(pin) }),
-  deletePin: (id: string) => req<{ ok: true }>(`/pins/${id}`, { method: 'DELETE' }),
+  health: () => req<{ status: string; extraction: boolean; geocoding: boolean }>('/health'),
 
-  listInbox: () => req<InboxBooking[]>('/inbox'),
-  addBookingToDay: (id: string, day: number) =>
-    req<{ ok: true }>(`/inbox/${id}/add-to-day`, { method: 'POST', body: JSON.stringify({ day }) }),
+  /** One page of changes after `sinceSeq`. Caller loops while `has_more`. */
+  listItems: (sinceSeq: number, limit = 500) =>
+    req<ItemPage>(`/items?since_seq=${sinceSeq}&limit=${limit}`),
 
-  /** Kicks off the backend's TikTok/IG parsing pipeline for a shared link. */
-  analyzeShareUrl: (url: string) =>
-    req<{ status: 'parsing' | 'duplicate' | 'saved'; pin?: SavedPin; duplicateOf?: SavedPin }>('/share/analyze', {
-      method: 'POST',
-      body: JSON.stringify({ url }),
-    }),
+  getItem: (id: string) => req<RemoteItem>(`/items/${encodeURIComponent(id)}`),
+
+  /** Upsert. Safe to repeat — a retry over flaky mobile data can't duplicate. */
+  putItem: (item: { id: string; kind: string; body: unknown; author: string }) =>
+    req<RemoteItem>('/items', { method: 'POST', body: JSON.stringify(item) }),
+
+  deleteItem: (id: string) => req<{}>(`/items/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  /** Hands a shared link to the extraction pipeline. Returns a pending row. */
+  analyzeShareUrl: (url: string, sharedText: string, author: string) =>
+    req<RemoteItem>('/share', { method: 'POST', body: JSON.stringify({ url, shared_text: sharedText, author }) }),
+
+  /** Reads a confirmation with Claude. Null when no key is configured (503). */
+  parseBooking: (text: string) =>
+    req<{
+      kind: string; title: string; sub: string; date: string | null;
+      time: string | null; confirmation: string | null; prepaid: boolean; confidence: string;
+    }>('/parse-booking', { method: 'POST', body: JSON.stringify({ text }) }),
 };
 
 /**
  * Free, keyless address → lat/lng lookup via OpenStreetMap Nominatim, used
  * for the "matched on the map" step in Add Pin. Nominatim's usage policy
  * requires a descriptive User-Agent and no more than ~1 req/sec.
+ *
+ * Kept even with a backend: this runs on the phone and needs no key, so Add
+ * Pin keeps working when the backend is unreachable.
  */
 export async function geocodeAddress(
   address: string

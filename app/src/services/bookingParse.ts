@@ -157,6 +157,51 @@ export function parseBookingText(raw: string): ParsedBooking | null {
   };
 }
 
+/**
+ * The same job done by the backend's model instead of these regexes.
+ *
+ * Worth the round trip when a confirmation is in Japanese prose, or laid out
+ * so the date and time aren't where a pattern would look. Returns null when
+ * there's no backend, no key, or no signal — the caller keeps the offline
+ * parse it already has rather than losing the preview.
+ *
+ * The server deliberately returns an ISO date rather than a trip day, so the
+ * mapping onto "day 6 of the trip" stays here, where DAYS lives.
+ */
+export async function parseBookingWithModel(text: string): Promise<ParsedBooking | null> {
+  const { api } = await import('./api');
+  const res = await api.parseBooking(text);
+  if (!res) return null;
+
+  const day = res.date ? DAYS.find((d) => d.date === res.date)?.day : undefined;
+  const startHour = res.time ? timeFromText(res.time) : undefined;
+  const dayMeta = day ? DAYS.find((d) => d.day === day) : undefined;
+
+  const sub =
+    res.sub ||
+    [
+      dayMeta ? `${dayMeta.dow} ${dayMeta.date.slice(5).replace('-', '/')}` : null,
+      res.time,
+      res.confirmation ? `conf. ${res.confirmation}` : null,
+      res.prepaid ? 'paid' : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+  return {
+    kind: (['Flight', 'Train', 'Restaurant', 'Hotel', 'Activity'] as const).includes(res.kind as any)
+      ? (res.kind as ParsedBooking['kind'])
+      : 'Activity',
+    title: res.title || 'Booking',
+    // Keep "paid" in the sub: bookingToEvent reads it back to set the tag.
+    sub: res.prepaid && !/paid/i.test(sub) ? `${sub} · paid` : sub,
+    confidence: res.confidence === 'Confident' ? 'Confident' : 'Check date',
+    day,
+    startHour,
+    confirmation: res.confirmation ?? undefined,
+  };
+}
+
 const KIND_CAT: Record<InboxBooking['kind'], Category> = {
   Flight: 'transit',
   Train: 'transit',

@@ -7,7 +7,7 @@ import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { Icon } from '../components/Icon';
 import { CategoryDot } from '../components/ui';
 import { Category, SavedPin } from '../types';
-import { geocodeAddress, api } from '../services/api';
+import { geocodeAddress } from '../services/api';
 import { findSamePlace } from '../services/backup';
 import { describeSharedLink } from '../utils/shareLink';
 import { newId } from '../utils/id';
@@ -93,8 +93,9 @@ export default function AddPinScreen() {
       return;
     }
 
+    // No direct call: the pin is saved locally and the next sync pass pushes
+    // it, so saving works identically with the backend down or absent.
     dispatch({ type: 'ADD_PIN', pin });
-    api.createPin(pin);
     navigation.goBack();
   }
 

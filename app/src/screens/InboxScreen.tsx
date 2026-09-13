@@ -6,14 +6,15 @@ import * as Clipboard from 'expo-clipboard';
 import { useAppState, inboxToEvent, syncedFrom } from '../store/AppState';
 import { exportAndShare, pickBackup } from '../services/backupFile';
 import { mergeSynced, isEmptySummary, MergeSummary } from '../services/backup';
+import { useSync } from '../hooks/useSync';
 import { TRIP, DAYS } from '../data/trip';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { DoubleRule, PrimaryButton, SecondaryButton, SectionLabel } from '../components/ui';
 import { Icon, IconName } from '../components/Icon';
 import { newId } from '../utils/id';
-import { parseBookingText, bookingToEvent, ParsedBooking } from '../services/bookingParse';
+import { parseBookingText, bookingToEvent, parseBookingWithModel, ParsedBooking } from '../services/bookingParse';
 import { useRoute } from '@react-navigation/native';
-import { api, backendConfigured } from '../services/api';
+import { syncConfigured } from '../services/api';
 
 /** Plain-English summary of what an import actually changed. */
 function describeMerge(s: MergeSummary): string {
@@ -37,7 +38,29 @@ export default function InboxScreen() {
   const [showForm, setShowForm] = useState(!!route.params?.sharedText);
   const [manualText, setManualText] = useState<string>(route.params?.sharedText ?? '');
   const [manualDay, setManualDay] = useState(DAYS[state.dayIdx].day);
-  const parsedBooking: ParsedBooking | null = useMemo(() => parseBookingText(manualText), [manualText]);
+  // Offline parse first, always: it's instant and keeps the preview live as
+  // you type. The model only runs when you ask, since it's a network round
+  // trip and most confirmations don't need it.
+  const offlineBooking: ParsedBooking | null = useMemo(() => parseBookingText(manualText), [manualText]);
+  const [smartBooking, setSmartBooking] = useState<ParsedBooking | null>(null);
+  const [reading, setReading] = useState(false);
+  const parsedBooking = smartBooking ?? offlineBooking;
+
+  async function readWithModel() {
+    setReading(true);
+    try {
+      const better = await parseBookingWithModel(manualText);
+      if (better) {
+        setSmartBooking(better);
+        if (better.day) {
+          setDayTouched(true);
+          setManualDay(better.day);
+        }
+      }
+    } finally {
+      setReading(false);
+    }
+  }
 
   // Follow the date found in the confirmation, until you override it.
   const [dayTouched, setDayTouched] = useState(false);
@@ -46,6 +69,7 @@ export default function InboxScreen() {
   }, [parsedBooking?.day, dayTouched]);
   // Which booking has its day-picker open, if any.
   const [reassigning, setReassigning] = useState<string | null>(null);
+  const sync = useSync();
   const [busy, setBusy] = useState<null | 'export' | 'import'>(null);
   const [backupNote, setBackupNote] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -91,7 +115,6 @@ export default function InboxScreen() {
     if (!booking) return;
     const event = inboxToEvent(booking, day);
     dispatch({ type: 'ADD_INBOX_TO_DAY', id, day, event });
-    api.addBookingToDay(id, day);
     dispatch({ type: 'SET_DAY', idx: day - 1 });
     setReassigning(null);
     navigation.navigate('Days');
@@ -131,7 +154,7 @@ export default function InboxScreen() {
           <Text style={styles.copyText}>{copied ? 'Copied' : 'Copy'}</Text>
         </Pressable>
       </View>
-      {!backendConfigured && (
+      {!syncConfigured && (
         <Text style={styles.setupNote}>
           {TRIP.inboxEmail} is a placeholder — forwarding there won't reach anything until the backend in
           server/ is deployed against a real inbound-email domain. Until then, add bookings by hand below.
@@ -181,12 +204,24 @@ export default function InboxScreen() {
           </Text>
           <TextInput
             value={manualText}
-            onChangeText={setManualText}
+            onChangeText={(t) => {
+              setManualText(t);
+              setSmartBooking(null);
+            }}
             placeholder={'Subject: Your JAL booking\nJAL 8 KIX to SFO\nTue Oct 6, 17:45\nConfirmation: WQ8T2M'}
             placeholderTextColor={COLORS.labelFaint}
             multiline
             style={styles.pasteInput}
           />
+
+          {parsedBooking && sync.configured && !smartBooking && (
+            <Pressable onPress={readWithModel} disabled={reading} style={styles.readBetter}>
+              <Icon name="MagnifyingGlass" size={15} color={COLORS.link} />
+              <Text style={styles.readBetterText}>
+                {reading ? 'Reading it…' : "Read it properly — better with Japanese, or an odd layout"}
+              </Text>
+            </Pressable>
+          )}
 
           {parsedBooking && (
             <View style={styles.parsedBooking}>
@@ -199,6 +234,7 @@ export default function InboxScreen() {
               </View>
               <Text style={styles.cardTitle}>{parsedBooking.title}</Text>
               <Text style={styles.cardSub}>{parsedBooking.sub}</Text>
+              {!!smartBooking && <Text style={styles.smartNote}>Read by the model.</Text>}
               {!parsedBooking.day && (
                 <Text style={styles.pasteWarn}>No trip date found in that text — pick the day yourself below.</Text>
               )}
@@ -244,11 +280,31 @@ export default function InboxScreen() {
       </Text>
 
       <DoubleRule style={{ marginTop: 26, marginBottom: 18 }} />
+
+      {sync.configured && (
+        <>
+          <SectionLabel style={{ marginBottom: 8 }}>Sync</SectionLabel>
+          <Text style={styles.backupBlurb}>
+            Pins, day plans and decisions sync with {TRIP.travelers[1]?.name ?? 'the other phone'} automatically —
+            when the app opens and a few seconds after you change something.
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, marginBottom: 22 }}>
+            <SecondaryButton label={sync.busy ? 'Syncing…' : 'Sync now'} onPress={() => sync.sync()} />
+            {!!sync.status && (
+              <Text style={[styles.syncStatus, { color: sync.last?.ok ? COLORS.label : COLORS.magentaDeep }]}>
+                {sync.status}
+              </Text>
+            )}
+          </View>
+        </>
+      )}
+
       <SectionLabel style={{ marginBottom: 10 }}>Backup & merge</SectionLabel>
       <Text style={styles.backupBlurb}>
-        Saved pins and day plans live on this phone only. Back them up before reinstalling, and swap files with
-        {' '}{TRIP.travelers[1]?.name ?? 'your trip partner'} to combine what you've both saved — importing merges, it
-        never overwrites.
+        {sync.configured
+          ? 'A file you can keep yourself, independent of the backend — worth one before reinstalling. Importing merges, it never overwrites. Also how you share with'
+          : 'Saved pins and day plans live on this phone only. Back them up before reinstalling, and swap files with'}
+        {' '}{TRIP.travelers[1]?.name ?? 'your trip partner'}{sync.configured ? '.' : " to combine what you've both saved — importing merges, it never overwrites."}
       </Text>
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
         <PrimaryButton
@@ -295,11 +351,15 @@ const styles = StyleSheet.create({
   pasteHint: { fontSize: 12.5, color: COLORS.label, lineHeight: 18, marginBottom: 10, fontFamily: FONT_SERIF_REGULAR },
   pasteInput: { borderWidth: 1, borderColor: COLORS.border, padding: 11, minHeight: 110, fontSize: 14.5, lineHeight: 20, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR, textAlignVertical: 'top' },
   parsedBooking: { borderLeftWidth: 3, borderLeftColor: COLORS.accent, backgroundColor: COLORS.accentTint, padding: 12, marginTop: 14 },
+  readBetter: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 10, marginTop: 4 },
+  readBetterText: { flex: 1, fontSize: 13, color: COLORS.link, fontFamily: FONT_SERIF_REGULAR },
+  smartNote: { fontSize: 12, color: COLORS.accentTintText, marginTop: 6, fontFamily: FONT_SERIF_REGULAR },
   pasteWarn: { fontSize: 12.5, color: COLORS.magentaDeep, marginTop: 8, lineHeight: 17, fontFamily: FONT_SERIF_REGULAR },
   dayPick: { paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.border, borderRadius: 2, marginRight: 6 },
   dayPickActive: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   dayPickText: { fontSize: 13, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
   backupBlurb: { fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 19, fontFamily: FONT_SERIF_REGULAR },
+  syncStatus: { flex: 1, fontSize: 12.5, lineHeight: 17, fontFamily: FONT_SERIF_REGULAR },
   backupNote: { fontSize: 13, lineHeight: 18, marginTop: 12, fontFamily: FONT_SERIF_REGULAR },
   backupCounts: { fontSize: 12, color: COLORS.labelFaint, marginTop: 12, fontFamily: FONT_SERIF_REGULAR },
   footnote: { fontSize: 13, color: COLORS.label, lineHeight: 19, marginTop: 12, fontFamily: FONT_SERIF_REGULAR },

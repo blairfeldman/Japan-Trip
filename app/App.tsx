@@ -13,12 +13,19 @@ import { SourceSerif4_600SemiBold } from '@expo-google-fonts/source-serif-4/600S
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { AppStateProvider } from './src/store/AppState';
 import { describeSharedLink } from './src/utils/shareLink';
+import { useSync } from './src/hooks/useSync';
 import RootNavigator from './src/navigation/RootNavigator';
 import { COLORS } from './src/theme';
 import { isExpoGo } from './src/env';
 import './src/services/notifications'; // registers the background geofencing task
 
 export const navigationRef = React.createRef<NavigationContainerRef<any>>();
+
+/** Mounted once inside the provider so exactly one sync loop runs. */
+function SyncBridge() {
+  useSync();
+  return null;
+}
 
 function ShareIntentBridge() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
@@ -67,6 +74,7 @@ export default function App() {
         <ShareIntentProvider options={{ disabled: isExpoGo }}>
           <AppStateProvider>
             <NavigationContainer ref={navigationRef}>
+              <SyncBridge />
               <ShareIntentBridge />
               <RootNavigator />
             </NavigationContainer>

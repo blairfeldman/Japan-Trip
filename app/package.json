@@ -42,7 +42,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "tsx src/services/backup.test.ts && tsx src/services/bookingParse.test.ts && tsx src/services/schedule.test.ts"
+    "test": "tsx src/services/backup.test.ts && tsx src/services/bookingParse.test.ts && tsx src/services/schedule.test.ts && tsx src/services/sync.test.ts"
   },
   "private": true
 }

@@ -3,16 +3,16 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
-import { api, backendConfigured } from '../services/api';
+import { api, syncConfigured } from '../services/api';
 import { findPinBySourceUrl } from '../services/backup';
 import { describeSharedLink } from '../utils/shareLink';
 import { parseSharedVideo, ParsedShare } from '../services/shareParse';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { PrimaryButton, SecondaryButton, CategoryDot } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { Category, SavedPin } from '../types';
+import { SavedPin } from '../types';
 
-type Status = 'parsing' | 'no-backend' | 'duplicate' | 'saved' | 'error';
+type Status = 'parsing' | 'no-backend' | 'duplicate' | 'server-pinned' | 'server-review' | 'server-slow';
 
 export default function ShareSheetScreen() {
   const navigation = useNavigation<any>();
@@ -34,49 +34,57 @@ export default function ShareSheetScreen() {
 
   const [status, setStatus] = useState<Status>('parsing');
   const [duplicateOf, setDuplicateOf] = useState<SavedPin | null>(null);
-  const [savedPin, setSavedPin] = useState<SavedPin | null>(null);
-  const [pickedCat, setPickedCat] = useState<Category>('food');
   const [parsed, setParsed] = useState<ParsedShare | null>(null);
+  const [remote, setRemote] = useState<any | null>(null);
 
   useEffect(() => {
-    if (!backendConfigured) {
-      // No parsing service, but we can still tell whether this exact clip is
-      // already on a pin — that's the dedupe half, and it needs no server.
-      const already = findPinBySourceUrl(state.pins, url);
-      if (already) {
-        setDuplicateOf(already);
-        setStatus('duplicate');
-        return;
-      }
-      // TikTok's oEmbed is public and keyless, so the caption (which usually
-      // names the place) can still be read without any backend at all.
-      let cancelled = false;
-      parseSharedVideo(url).then((p) => {
-        if (cancelled) return;
-        setParsed(p);
-        setStatus('no-backend');
-      });
-      return () => {
-        cancelled = true;
-      };
+    let cancelled = false;
+
+    // Already on a pin? That needs neither backend nor network.
+    const already = findPinBySourceUrl(state.pins, url);
+    if (already) {
+      setDuplicateOf(already);
+      setStatus('duplicate');
+      return;
     }
-    api.analyzeShareUrl(url).then((res) => {
-      if (!res) {
-        setStatus('error');
-        return;
+
+    (async () => {
+      if (syncConfigured) {
+        // The server reads the post properly — caption, then a model for the
+        // place, then a real geocode. It answers at once with a pending row and
+        // fills it in behind the scenes, so poll briefly rather than holding
+        // the share sheet open for the whole pipeline.
+        const created = await api.analyzeShareUrl(url, '', 'blair');
+        if (cancelled) return;
+        if (created) {
+          for (let i = 0; i < 12; i++) {
+            const latest = await api.getItem(created.id);
+            if (cancelled) return;
+            if (latest && latest.status !== 'pending') {
+              setRemote(latest);
+              setStatus(latest.body?.place ? 'server-pinned' : 'server-review');
+              return;
+            }
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+          if (cancelled) return;
+          // Still working. It reaches the phone on the next sync either way.
+          setStatus('server-slow');
+          return;
+        }
+        // Backend unreachable — carry on with the on-device path below.
       }
-      if (res.status === 'duplicate' && res.duplicateOf) {
-        setDuplicateOf(res.duplicateOf);
-        setStatus('duplicate');
-      } else if (res.status === 'saved' && res.pin) {
-        setSavedPin(res.pin);
-        setPickedCat(res.pin.cat);
-        dispatch({ type: 'ADD_PIN', pin: res.pin });
-        setStatus('saved');
-      } else {
-        setStatus('error');
-      }
-    });
+
+      // No backend, or it didn't answer: read what the caption alone gives us.
+      const parsedShare = await parseSharedVideo(url);
+      if (cancelled) return;
+      setParsed(parsedShare);
+      setStatus('no-backend');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [url]);
 
   return (
@@ -95,10 +103,51 @@ export default function ShareSheetScreen() {
           <View style={{ paddingVertical: 8 }}>
             <View style={styles.parsingRow}>
               <ActivityIndicator color={COLORS.accent} />
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.parsingTitle}>Finding the place in this video</Text>
-                <Text style={styles.parsingSub}>Reading caption, on-screen text and the pinned comment</Text>
+                <Text style={styles.parsingSub}>
+                  {syncConfigured ? 'Reading the caption, then looking the place up on the map' : 'Reading the caption'}
+                </Text>
               </View>
+            </View>
+          </View>
+        )}
+
+        {(status === 'server-pinned' || status === 'server-review') && remote && (
+          <View style={{ paddingVertical: 2 }}>
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: 14 }}>
+              <View style={[styles.checkBadge, status === 'server-review' && { backgroundColor: COLORS.magentaDeep }]}>
+                <Icon name={status === 'server-pinned' ? 'Check' : 'MapPin'} size={19} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.savedTitle}>
+                  {remote.body?.extraction?.place_name ?? remote.body?.place?.name ?? 'Saved'}
+                </Text>
+                <Text style={styles.savedSub}>
+                  {remote.body?.place?.address ?? 'Saved, but not placed on the map'}
+                </Text>
+              </View>
+            </View>
+            {!!remote.body?.recommendation && (
+              <Text style={styles.bodyText}>"{remote.body.recommendation}"</Text>
+            )}
+            {!!remote.body?.review_reason && (
+              <Text style={styles.reviewNote}>{remote.body.review_reason}</Text>
+            )}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+              <PrimaryButton label="Done" onPress={() => navigation.goBack()} />
+              <SecondaryButton label="Add by hand" onPress={() => navigation.replace('AddPin', { sourceUrl: url })} />
+            </View>
+          </View>
+        )}
+
+        {status === 'server-slow' && (
+          <View style={{ paddingVertical: 4 }}>
+            <Text style={styles.bodyText}>
+              Saved, and still being read. It'll appear on the map on the next sync — no need to wait here.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+              <PrimaryButton label="Done" onPress={() => navigation.goBack()} />
             </View>
           </View>
         )}
@@ -145,17 +194,7 @@ export default function ShareSheetScreen() {
           </View>
         )}
 
-        {status === 'error' && (
-          <View style={{ paddingVertical: 4 }}>
-            <Text style={styles.bodyText}>Couldn't reach the parsing service. Try again, or add the pin by hand.</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
-              <PrimaryButton label="Add by hand" onPress={() => navigation.replace('AddPin', { sourceUrl: url })} />
-              <SecondaryButton label="Close" onPress={() => navigation.goBack()} />
-            </View>
-          </View>
-        )}
-
-        {status === 'duplicate' && duplicateOf && (
+                {status === 'duplicate' && duplicateOf && (
           <View style={{ paddingVertical: 2 }}>
             <View style={styles.dupeCallout}>
               <Text style={styles.dupeLabel}>Already saved</Text>
@@ -187,36 +226,7 @@ export default function ShareSheetScreen() {
           </View>
         )}
 
-        {status === 'saved' && savedPin && (
-          <View style={{ paddingVertical: 2 }}>
-            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-              <View style={styles.checkBadge}>
-                <Icon name="Check" size={19} color="#fff" />
               </View>
-              <View>
-                <Text style={styles.savedTitle}>Pinned to {savedPin.address.split(',').slice(-2)[0]?.trim() || 'your trip'}</Text>
-                <Text style={styles.savedSub}>New pin saved</Text>
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 18 }}>
-              {(Object.keys(CATEGORY) as Category[]).filter((k) => k !== 'transit').map((k) => (
-                <Pressable
-                  key={k}
-                  onPress={() => {
-                    setPickedCat(k);
-                    dispatch({ type: 'SET_PIN_CAT', pinId: savedPin.id, cat: k });
-                  }}
-                  style={[styles.catChip, pickedCat === k && styles.catChipActive]}
-                >
-                  <CategoryDot cat={k} size={8} />
-                  <Text style={styles.catChipText}>{CATEGORY[k].label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <PrimaryButton label="View the pin" onPress={() => openPin(savedPin.id)} />
-          </View>
-        )}
-      </View>
     </View>
   );
 }
@@ -237,6 +247,7 @@ const styles = StyleSheet.create({
   parsedCard: { backgroundColor: '#fff', borderLeftWidth: 3, borderLeftColor: COLORS.accent, padding: 13, marginTop: 14 },
   parsedName: { fontSize: 17, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   parsedMeta: { fontSize: 12.5, color: COLORS.label, marginTop: 3, fontFamily: FONT_SERIF_REGULAR },
+  reviewNote: { fontSize: 13, lineHeight: 18, color: COLORS.magentaDeep, marginTop: 12, fontFamily: FONT_SERIF_REGULAR },
   linkLine: { fontSize: 12, lineHeight: 17, color: COLORS.labelFaint, marginTop: 10, fontFamily: FONT_SERIF_REGULAR },
   dupeCallout: { backgroundColor: COLORS.magentaTint, borderLeftWidth: 3, borderLeftColor: COLORS.magenta, padding: 13, marginBottom: 16 },
   dupeLabel: { fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.magentaDeep, marginBottom: 5, fontFamily: FONT_SERIF_REGULAR },
@@ -246,7 +257,4 @@ const styles = StyleSheet.create({
   checkBadge: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
   savedTitle: { fontSize: 17, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   savedSub: { fontSize: 13.5, color: COLORS.label, fontFamily: FONT_SERIF_REGULAR },
-  catChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: COLORS.border, borderRadius: 2, paddingHorizontal: 12, paddingVertical: 8, minHeight: 38 },
-  catChipActive: { borderColor: COLORS.ink, backgroundColor: COLORS.hover },
-  catChipText: { fontSize: 13.5, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
 });

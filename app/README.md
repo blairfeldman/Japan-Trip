@@ -26,7 +26,7 @@ provision on your behalf. Here's the honest breakdown:
 | Google Maps tiles on the Map tab | ⚠️ Needs **your** Google Maps API key (see below). Expo Go uses its own; a standalone build without one shows an explanation instead of the map |
 | Saved pins, day plans and Book it / Skip decisions surviving a restart | ✅ Live — persisted to `AsyncStorage`, see `src/services/persist.ts` |
 | Backing those up, and merging two phones' saves | ✅ Live — export/import a JSON file from the Inbox screen, no server needed. See below |
-| Shared pins, forwarded-booking inbox sync | ⚠️ Needs the backend in `server/` deployed and `EXPO_PUBLIC_API_BASE_URL` set — falls back to on-device-only storage without it |
+| Sync between both phones | ✅ Live once `backend/` is deployed and `EXPO_PUBLIC_API_BASE_URL` + `EXPO_PUBLIC_API_TOKEN` are set. Without them the app is local-only, exactly as before |
 | "Share to app" from TikTok/Instagram | ✅ Live in a real build (not Expo Go). Shared links attach to the pin, and re-sharing a clip or saving a place that's already pinned merges instead of duplicating. The caption, author and cover frame are read from the services' own public oEmbed endpoints — no key, no account, no backend — and offered as a name to correct. Reading the place out of *on-screen text and pinned comments* is what still needs `server/` |
 | Getting a booking into the app | ✅ Live — paste a confirmation into the Inbox, or share it straight from your mail app. Date, time and confirmation number are read on-device, and the date is matched to a trip day. See below |
 | Forwarding real booking emails to `japan@trip.mail` | ⚠️ That address is a placeholder from the design — needs your own domain + inbound-email provider, see `server/README.md`. The paste/share route above covers the same ground without it |
@@ -206,6 +206,41 @@ applied when the day is rendered (`src/services/schedule.ts`), which means:
 
 Edited entries are marked with a dot on the day grid. Covered by
 `src/services/schedule.test.ts`.
+
+## Sync
+
+With `EXPO_PUBLIC_API_BASE_URL` and `EXPO_PUBLIC_API_TOKEN` set (see
+`backend/README.md`), pins, day-plan entries, edits, decisions and inbox
+bookings sync between both phones. It runs when the app opens, when it returns
+to the foreground, and a few seconds after a local change settles — not on a
+timer, because those are the moments that matter and a trip app is mostly in a
+pocket.
+
+**The phone remains the source of truth for display.** Every screen renders
+from local storage; sync only reconciles in the background. Lose signal on the
+Yamanote line and nothing changes except that the next pass has more to do.
+
+How a pass works:
+
+1. **Pull** everything after this phone's `seq` cursor, looping while the
+   server says `has_more` — a client that advances its cursor past a truncated
+   page skips those rows permanently.
+2. **Merge** with the same `mergeSynced` the backup file uses, so the rules are
+   identical whichever way records arrive. Tombstones are applied separately,
+   since a union can't express a deletion.
+3. **Push** only records whose content actually changed, compared against a
+   fingerprint of what was last sent. Pushing everything each pass would bump
+   every row's `seq`, which would make the *other* phone re-download the whole
+   set — two phones syncing in circles forever.
+4. **Save the cursor** with the push marks, and only after the rows are already
+   merged into state.
+
+The cursor lives outside the backup file on purpose: it's this phone's position
+in the server's history, so restoring someone else's backup must not hand you
+theirs or you'd skip everything they had already seen.
+
+`Days → envelope → Sync` shows what the last pass did and has a **Sync now**
+button. Covered by `src/services/sync.test.ts`.
 
 ## Backup & merging two phones
 

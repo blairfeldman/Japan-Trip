@@ -22,3 +22,15 @@ export const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 
 /** Safe to mount a Google MapView? */
 export const canRenderMap = isExpoGo || GOOGLE_MAPS_KEY.length > 0;
+
+/**
+ * The sync backend (see `backend/`). Both must be set for sync to run — a URL
+ * without a token would just collect 401s.
+ *
+ * Everything works with these unset: the app is local-first and only treats
+ * the backend as a sync target, so an unconfigured build behaves exactly as it
+ * did before there was one.
+ */
+export const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/+$/, '');
+export const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN ?? '';
+export const syncConfigured = API_BASE_URL.length > 0 && API_TOKEN.length > 0;
