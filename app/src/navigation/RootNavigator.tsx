@@ -17,6 +17,7 @@ import ConverterScreen from '../screens/ConverterScreen';
 import PhrasePracticeScreen from '../screens/PhrasePracticeScreen';
 import AddPinScreen from '../screens/AddPinScreen';
 import ShareSheetScreen from '../screens/ShareSheetScreen';
+import EditEventScreen from '../screens/EditEventScreen';
 
 const commonStackOptions = {
   headerShown: false,
@@ -29,6 +30,7 @@ function NowStackNavigator() {
     <NowStack.Navigator screenOptions={commonStackOptions}>
       <NowStack.Screen name="Now" component={NowScreen} />
       <NowStack.Screen name="EventDetail" component={EventDetailScreen} />
+      <NowStack.Screen name="EditEvent" component={EditEventScreen} options={{ presentation: 'modal' }} />
       <NowStack.Screen name="PinDetail" component={PinDetailScreen} />
     </NowStack.Navigator>
   );
@@ -41,6 +43,7 @@ function MapStackNavigator() {
       <MapStack.Screen name="Map" component={MapScreen} />
       <MapStack.Screen name="PinDetail" component={PinDetailScreen} />
       <MapStack.Screen name="EventDetail" component={EventDetailScreen} />
+      <MapStack.Screen name="EditEvent" component={EditEventScreen} options={{ presentation: 'modal' }} />
     </MapStack.Navigator>
   );
 }
@@ -51,6 +54,7 @@ function DaysStackNavigator() {
     <DaysStack.Navigator screenOptions={commonStackOptions}>
       <DaysStack.Screen name="Days" component={DaysScreen} />
       <DaysStack.Screen name="EventDetail" component={EventDetailScreen} />
+      <DaysStack.Screen name="EditEvent" component={EditEventScreen} options={{ presentation: 'modal' }} />
       <DaysStack.Screen name="Inbox" component={InboxScreen} />
     </DaysStack.Navigator>
   );

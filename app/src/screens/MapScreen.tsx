@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { DAYS, cityCoordsFor } from '../data/trip';
-import { eventsForDay } from '../data/itinerary';
+import { resolveDayEvents } from '../services/schedule';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { CategoryDot } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -39,8 +39,8 @@ export default function MapScreen() {
     : visiblePins;
 
   const stops = useMemo(
-    () => eventsForDay(day.day).filter((e) => !!e.location),
-    [day.day]
+    () => resolveDayEvents(day.day, state.extraEvents, state.eventEdits).filter((e) => !!e.location),
+    [day.day, state.extraEvents, state.eventEdits]
   );
 
   // Without a GPS fix there is no "within 1 km" — listing every pin under that

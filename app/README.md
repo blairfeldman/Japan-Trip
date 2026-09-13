@@ -15,6 +15,7 @@ provision on your behalf. Here's the honest breakdown:
 | Feature | Status |
 |---|---|
 | All 12 screens, real navigation, real data | ✅ Live — pulled from the actual spreadsheet, see `src/data/` |
+| Editing the day plan | ✅ Live — hold an entry on the Days grid to change its time, title, category or cost, or remove it; **+** in the header adds one. Itinerary entries are patched, never overwritten, so the original can always be restored |
 | Weather (Now screen) | ✅ Live — [Open-Meteo](https://open-meteo.com/), keyless |
 | Currency converter | ✅ Live — [frankfurter.app](https://www.frankfurter.app/), keyless (ECB daily rate) |
 | GPS distances + "leave in N min" countdown | ✅ Live — real `expo-location`, see `src/services/location.ts` |
@@ -187,6 +188,24 @@ Studio, the Android SDK and a JDK installed on Windows first.
 3. **Rename the bundle identifiers** in `app.json`
    (`com.blairfeldman.japantrip`) if you're publishing this rather than
    just running it on your own device.
+
+## Editing the day plan
+
+Hold any entry on the Days grid (or tap it, then **Edit**) to change its time,
+title, note, category or cost tag, or to remove it from the day. The **+** in
+the Days header adds a new entry.
+
+The 12 days in `src/data/itinerary.ts` are generated from the spreadsheet and
+are never mutated. An edit is stored as a *patch* against the entry's id and
+applied when the day is rendered (`src/services/schedule.ts`), which means:
+
+- a spreadsheet entry can always be reset to what it originally said,
+- only the fields you actually changed are stored,
+- removing is a flag, not a deletion, so it survives a merge and can be undone,
+- edits are timestamped, so merging two phones takes the later change.
+
+Edited entries are marked with a dot on the day grid. Covered by
+`src/services/schedule.test.ts`.
 
 ## Backup & merging two phones
 

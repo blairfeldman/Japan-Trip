@@ -7,6 +7,7 @@ import { WeatherNow } from '../services/weather';
 import { LatLng } from '../services/location';
 import { loadPersisted, savePersisted, PersistedState } from '../services/persist';
 import { SyncedState } from '../services/backup';
+import { EventEdits, EventPatch, diffPatch, seedEvent } from '../services/schedule';
 import { Decisions } from '../data/budget';
 import { isoDateOnly } from '../utils/time';
 
@@ -30,6 +31,8 @@ interface State {
   location: LatLng | null;
   nowOverride: Date | null;
   decisions: Decisions;
+  /** Patches over the day plan, keyed by event id. See services/schedule.ts. */
+  eventEdits: EventEdits;
   hydrated: boolean;
 }
 
@@ -52,6 +55,9 @@ type Action =
   | { type: 'SNOOZE_LEAVE_BY'; minutes: number }
   | { type: 'CLEAR_SNOOZE' }
   | { type: 'DECIDE_ITEM'; id: string; decision: 'booked' | 'skipped' }
+  | { type: 'EDIT_EVENT'; id: string; original: ItineraryEvent; patch: EventPatch }
+  | { type: 'DELETE_EVENT'; id: string }
+  | { type: 'RESTORE_EVENT'; id: string }
   | { type: 'APPLY_MERGED'; merged: SyncedState };
 
 const initialState: State = {
@@ -70,6 +76,7 @@ const initialState: State = {
   location: null,
   nowOverride: null,
   decisions: {},
+  eventEdits: {},
   hydrated: false,
 };
 
@@ -80,6 +87,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         ...(action.saved ?? {}),
         decisions: migrateDecisions(action.saved?.decisions),
+        eventEdits: action.saved?.eventEdits ?? {},
         // Seed data is the floor: a saved-but-empty pin list shouldn't wipe
         // the places that shipped with the app.
         pins: action.saved?.pins?.length ? action.saved.pins : state.pins,
@@ -130,6 +138,35 @@ function reducer(state: State, action: Action): State {
         ...state,
         decisions: { ...state.decisions, [action.id]: { decision: action.decision, at: new Date().toISOString() } },
       };
+    case 'EDIT_EVENT': {
+      // Only the fields that actually differ are stored, so an entry can
+      // always be reset to what the itinerary said.
+      const patch = diffPatch(action.original, action.patch);
+      if (Object.keys(patch).length === 0 && !state.eventEdits[action.id]) return state;
+      return {
+        ...state,
+        eventEdits: { ...state.eventEdits, [action.id]: { patch, at: new Date().toISOString() } },
+      };
+    }
+    case 'DELETE_EVENT':
+      return {
+        ...state,
+        eventEdits: {
+          ...state.eventEdits,
+          [action.id]: { patch: state.eventEdits[action.id]?.patch ?? {}, at: new Date().toISOString(), deleted: true },
+        },
+      };
+    case 'RESTORE_EVENT': {
+      // A seed entry goes back to the itinerary's version; one you added
+      // yourself just stops being deleted.
+      const next = { ...state.eventEdits };
+      if (seedEvent(action.id)) {
+        delete next[action.id];
+      } else {
+        next[action.id] = { patch: {}, at: new Date().toISOString() };
+      }
+      return { ...state, eventEdits: next };
+    }
     // The caller runs mergeSynced so it can show what changed; this just
     // commits the result.
     case 'APPLY_MERGED':
@@ -155,12 +192,19 @@ function migrateDecisions(saved: unknown): Decisions {
 }
 
 /** The slice that travels between phones — no per-device UI state. */
-export function syncedFrom(state: { pins: SavedPin[]; inbox: InboxBooking[]; extraEvents: ItineraryEvent[]; decisions: Decisions }): SyncedState {
+export function syncedFrom(state: {
+  pins: SavedPin[];
+  inbox: InboxBooking[];
+  extraEvents: ItineraryEvent[];
+  decisions: Decisions;
+  eventEdits: EventEdits;
+}): SyncedState {
   return {
     pins: state.pins,
     inbox: state.inbox,
     extraEvents: state.extraEvents,
     decisions: state.decisions,
+    eventEdits: state.eventEdits,
   };
 }
 
@@ -172,6 +216,7 @@ function persistable(state: State): PersistedState {
     inbox: state.inbox,
     extraEvents: state.extraEvents,
     decisions: state.decisions,
+    eventEdits: state.eventEdits,
     catFilters: state.catFilters,
     converter: state.converter,
   };
@@ -200,6 +245,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     state.inbox,
     state.extraEvents,
     state.decisions,
+    state.eventEdits,
     state.catFilters,
     state.converter,
   ]);

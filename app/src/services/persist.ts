@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Category, InboxBooking, ItineraryEvent, SavedPin } from '../types';
 import { Decisions } from '../data/budget';
+import { EventEdits } from './schedule';
 
 const KEY = 'jt.state.v1';
 
@@ -15,6 +16,7 @@ export interface PersistedState {
   inbox: InboxBooking[];
   extraEvents: ItineraryEvent[];
   decisions: Decisions;
+  eventEdits: EventEdits;
   catFilters: Partial<Record<Category, boolean>>;
   converter: { amount: string; dir: 'jpy' | 'usd' };
 }

@@ -16,7 +16,7 @@ function check(name: string, cond: boolean, extra = '') {
 
 const pin = (o: Partial<SavedPin> & Record<string, any> = {}): SavedPin => ({ id: 'x', name: 'P', cat: 'ramen', address: 'A', lat: 35.0, lng: 135.0,
   sub: '', who: 'B', clips: [], createdAt: '2026-09-01T00:00:00Z', ...o } as SavedPin);
-const empty = (): SyncedState => ({ pins: [], inbox: [], extraEvents: [], decisions: {} });
+const empty = (): SyncedState => ({ pins: [], inbox: [], extraEvents: [], decisions: {}, eventEdits: {} });
 
 console.log('\n-- pins --');
 { // distinct places both kept
@@ -105,6 +105,22 @@ console.log('\n-- parse guards --');
   check('rejects non-JSON', rejects('not json'));
   check('rejects other JSON', rejects('{"hello":1}'));
   check('rejects newer version', rejects(JSON.stringify({ kind: 'japan-trip-backup', version: 99, state: { pins: [], extraEvents: [] } })));
+}
+
+console.log('\n-- day-plan edits merge --');
+{
+  const mine = { ...empty(), eventEdits: { 'd1-dinner': { patch: { title: 'Ramen' }, at: '2026-09-25T10:00:00Z' } } };
+  const theirs = { ...empty(), eventEdits: { 'd1-dinner': { patch: { title: 'Izakaya' }, at: '2026-09-25T12:00:00Z' } } };
+  check('later edit wins', mergeSynced(mine, theirs).state.eventEdits['d1-dinner'].patch.title === 'Izakaya');
+  check('earlier edit does not clobber later', mergeSynced(theirs, mine).state.eventEdits['d1-dinner'].patch.title === 'Izakaya');
+
+  const del = { ...empty(), eventEdits: { 'd1-dinner': { patch: {}, at: '2026-09-25T13:00:00Z', deleted: true } } };
+  check('a later delete beats an earlier edit', mergeSynced(theirs, del).state.eventEdits['d1-dinner'].deleted === true);
+  check('an earlier delete loses to a later edit', mergeSynced(del, theirs).state.eventEdits['d1-dinner'].deleted === true);
+
+  const other = { ...empty(), eventEdits: { 'd2-tour': { patch: { start: 9 }, at: '2026-09-26T10:00:00Z' } } };
+  check('edits to different entries both survive', Object.keys(mergeSynced(mine, other).state.eventEdits).length === 2);
+  check('re-importing the same edits is a no-op', mergeSynced(mergeSynced(mine, other).state, other).summary.newEdits === 0);
 }
 
 console.log('\n-- saving from a shared link (no backend) --');

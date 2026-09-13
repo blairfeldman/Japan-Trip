@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { useClock } from '../hooks/useClock';
 import { DAYS, cityCoordsFor, dayMetaForDate } from '../data/trip';
-import { eventsForDay } from '../data/itinerary';
+import { resolveDayEvents } from '../services/schedule';
 import { ItineraryEvent } from '../types';
 import { fetchWeather } from '../services/weather';
 import {
@@ -41,11 +41,8 @@ export default function NowScreen() {
   const now = useClock();
   const { phase, meta } = useTripPhase(now);
   const dayEvents = useMemo(
-    () =>
-      [...eventsForDay(meta.day), ...state.extraEvents.filter((e) => e.day === meta.day)].sort(
-        (a, b) => a.start - b.start
-      ),
-    [meta.day, state.extraEvents]
+    () => resolveDayEvents(meta.day, state.extraEvents, state.eventEdits),
+    [meta.day, state.extraEvents, state.eventEdits]
   );
 
   const currentHour = dateToDecimalHour(now);

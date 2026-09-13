@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { useClock } from '../hooks/useClock';
 import { DAYS } from '../data/trip';
-import { eventsForDay } from '../data/itinerary';
+import { resolveDayEvents, isEdited } from '../services/schedule';
 import { dayTotalUsd } from '../data/budget';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { SectionLabel, Tag } from '../components/ui';
@@ -29,11 +29,8 @@ export default function DaysScreen() {
   const gridRef = useRef<ScrollView | null>(null);
 
   const events = useMemo(
-    () =>
-      [...eventsForDay(day.day), ...state.extraEvents.filter((e) => e.day === day.day)].sort(
-        (a, b) => a.start - b.start
-      ),
-    [day.day, state.extraEvents]
+    () => resolveDayEvents(day.day, state.extraEvents, state.eventEdits),
+    [day.day, state.extraEvents, state.eventEdits]
   );
 
   const hours = [];
@@ -64,6 +61,12 @@ export default function DaysScreen() {
             <SectionLabel>{day.city}</SectionLabel>
             <Text style={styles.heading}>{day.heading}</Text>
           </View>
+          <Pressable
+            onPress={() => navigation.navigate('EditEvent', { day: day.day })}
+            style={({ pressed }) => [styles.inboxBtn, pressed && { backgroundColor: COLORS.hover }]}
+          >
+            <Icon name="Plus" size={21} color={COLORS.inkSoft} />
+          </Pressable>
           <Pressable
             onPress={() => navigation.navigate('Inbox')}
             style={({ pressed }) => [styles.inboxBtn, pressed && { backgroundColor: COLORS.hover }]}
@@ -97,6 +100,7 @@ export default function DaysScreen() {
             );
           })}
         </ScrollView>
+        <Text style={styles.hint}>Tap an entry for detail · hold to edit</Text>
       </View>
 
       <ScrollView
@@ -123,6 +127,8 @@ export default function DaysScreen() {
               <Pressable
                 key={e.id}
                 onPress={() => navigation.navigate('EventDetail', { eventId: e.id })}
+                onLongPress={() => navigation.navigate('EditEvent', { eventId: e.id })}
+                delayLongPress={300}
                 style={({ pressed }) => [
                   styles.block,
                   { top, height, borderLeftColor: CATEGORY[e.cat].color, backgroundColor: isTransit ? '#f1efef' : '#fff' },
@@ -130,7 +136,7 @@ export default function DaysScreen() {
                 ]}
               >
                 <Text style={[styles.blockTitle, { fontSize: tight ? 13.5 : 15, color: isTransit ? COLORS.inkMuted : COLORS.ink }]} numberOfLines={1}>
-                  {e.title}
+                  {isEdited(e.id, state.eventEdits) ? '• ' : ''}{e.title}
                 </Text>
                 {!tight && !!e.sub && (
                   <Text style={styles.blockSub} numberOfLines={1}>
@@ -147,7 +153,7 @@ export default function DaysScreen() {
           })}
 
           {events.length === 0 && (
-            <Text style={styles.emptyDay}>Nothing scheduled on this day yet.</Text>
+            <Text style={styles.emptyDay}>Nothing scheduled on this day yet.{'\n'}Tap + above to add something.</Text>
           )}
 
           {isToday && nowTop >= 0 && nowTop <= (HR1 - HR0 + 1) * PX && (
@@ -164,6 +170,7 @@ export default function DaysScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
+  hint: { fontSize: 11.5, color: COLORS.labelFaint, textAlign: 'center', paddingBottom: 8, fontFamily: FONT_SERIF_REGULAR },
   header: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
   headerTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, paddingHorizontal: 20, paddingBottom: 10 },
   heading: { fontSize: 26, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink, marginTop: 3 },

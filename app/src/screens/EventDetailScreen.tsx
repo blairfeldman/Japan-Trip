@@ -2,10 +2,10 @@ import React, { useMemo } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppState } from '../store/AppState';
-import { ITINERARY } from '../data/itinerary';
+import { resolveEvent, isEdited } from '../services/schedule';
 import { DAYS, TRIP } from '../data/trip';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
-import { Avatar, PrimaryButton, Tag } from '../components/ui';
+import { Avatar, PrimaryButton, SecondaryButton, Tag } from '../components/ui';
 import { PlaceholderBanner } from '../components/PlaceholderBanner';
 import { Icon } from '../components/Icon';
 import { hourToClock } from '../utils/time';
@@ -17,8 +17,8 @@ export default function EventDetailScreen() {
   const eventId: string = route.params?.eventId;
 
   const event = useMemo(
-    () => [...ITINERARY, ...state.extraEvents].find((e) => e.id === eventId),
-    [eventId, state.extraEvents]
+    () => resolveEvent(eventId, state.extraEvents, state.eventEdits),
+    [eventId, state.extraEvents, state.eventEdits]
   );
 
   if (!event) {
@@ -100,7 +100,11 @@ export default function EventDetailScreen() {
               Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${mapsQuery}`);
             }}
           />
+          <SecondaryButton label="Edit" onPress={() => navigation.navigate('EditEvent', { eventId: event.id })} />
         </View>
+        {isEdited(event.id, state.eventEdits) && (
+          <Text style={styles.editedNote}>You've changed this from the original itinerary.</Text>
+        )}
 
         <View style={styles.travelersRow}>
           {TRIP.travelers.map((t, i) => (
@@ -133,6 +137,7 @@ const styles = StyleSheet.create({
   factV: { fontSize: 16, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   noteRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 22 },
   noteText: { flex: 1, fontSize: 13, color: COLORS.label, lineHeight: 19, fontFamily: FONT_SERIF_REGULAR },
+  editedNote: { fontSize: 12.5, color: COLORS.label, marginTop: -14, marginBottom: 20, fontFamily: FONT_SERIF_REGULAR },
   travelersRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 16, borderTopWidth: 1, borderTopColor: COLORS.hairline },
   travelersText: { fontSize: 13, color: COLORS.label, marginLeft: 4, fontFamily: FONT_SERIF_REGULAR },
 });

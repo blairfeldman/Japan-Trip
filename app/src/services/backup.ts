@@ -1,5 +1,6 @@
 import { InboxBooking, ItineraryEvent, SavedPin } from '../types';
 import { Decisions } from '../data/budget';
+import { EventEdits } from './schedule';
 import { distanceMeters } from '../utils/geo';
 
 /**
@@ -38,6 +39,7 @@ export interface SyncedState {
   inbox: InboxBooking[];
   extraEvents: ItineraryEvent[];
   decisions: Decisions;
+  eventEdits: EventEdits;
 }
 
 export interface BackupFile {
@@ -53,10 +55,11 @@ export interface MergeSummary {
   newClips: number;
   newEvents: number;
   newDecisions: number;
+  newEdits: number;
 }
 
 export function isEmptySummary(s: MergeSummary): boolean {
-  return s.newPins + s.mergedPins + s.newClips + s.newEvents + s.newDecisions === 0;
+  return s.newPins + s.mergedPins + s.newClips + s.newEvents + s.newDecisions + s.newEdits === 0;
 }
 
 function normalizeAddress(a: string): string {
@@ -109,7 +112,7 @@ function mergePinPair(base: SavedPin, incoming: SavedPin): { pin: SavedPin; newC
 }
 
 export function mergeSynced(local: SyncedState, incoming: SyncedState): { state: SyncedState; summary: MergeSummary } {
-  const summary: MergeSummary = { newPins: 0, mergedPins: 0, newClips: 0, newEvents: 0, newDecisions: 0 };
+  const summary: MergeSummary = { newPins: 0, mergedPins: 0, newClips: 0, newEvents: 0, newDecisions: 0, newEdits: 0 };
 
   // Pins: match on id first, then on being the same physical place. The older
   // record wins the id so links from events and clips stay valid.
@@ -171,7 +174,19 @@ export function mergeSynced(local: SyncedState, incoming: SyncedState): { state:
     }
   }
 
-  return { state: { pins, inbox, extraEvents, decisions }, summary };
+  // Edits to the day plan: same rule as decisions — later timestamp wins, so
+  // changing an entry on one phone and deleting it on the other resolves to
+  // whichever you did last rather than to whoever syncs second.
+  const eventEdits: EventEdits = { ...local.eventEdits };
+  for (const [id, inc] of Object.entries(incoming.eventEdits ?? {})) {
+    const mine = eventEdits[id];
+    if (!mine || inc.at > mine.at) {
+      if (!mine || JSON.stringify(mine) !== JSON.stringify(inc)) summary.newEdits += 1;
+      eventEdits[id] = inc;
+    }
+  }
+
+  return { state: { pins, inbox, extraEvents, decisions, eventEdits }, summary };
 }
 
 /** The already-saved pin for this place, if there is one. */
@@ -216,6 +231,7 @@ export function parseBackup(raw: string): BackupFile {
       inbox: Array.isArray(s.inbox) ? s.inbox : [],
       extraEvents: s.extraEvents,
       decisions: s.decisions && typeof s.decisions === 'object' ? s.decisions : {},
+      eventEdits: s.eventEdits && typeof s.eventEdits === 'object' ? s.eventEdits : {},
     },
   };
 }

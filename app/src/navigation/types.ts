@@ -1,6 +1,8 @@
 export type CommonStackParamList = {
   EventDetail: { eventId: string };
   PinDetail: { pinId: string };
+  /** eventId edits an existing entry; day starts a new one on that day. */
+  EditEvent: { eventId?: string; day?: number };
 };
 
 export type NowStackParamList = CommonStackParamList & { Now: undefined };
