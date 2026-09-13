@@ -101,6 +101,8 @@ export function pinCategory(serverCat: string | undefined, text: string): Catego
  * app's own record instead of overwriting the server's extraction log — and
  * because it's derived, both phones produce the same id and converge.
  */
+export const SHARE_PREFIX = 'share:';
+
 export function pinFromShareRow(item: RemoteItem): SavedPin | null {
   const body = (item.body ?? {}) as ShareBody;
   const place = body.place;
@@ -116,7 +118,7 @@ export function pinFromShareRow(item: RemoteItem): SavedPin | null {
   const savedBy: Person = item.author === 'Y' ? 'Y' : 'B';
 
   return {
-    id: `share:${item.id}`,
+    id: `${SHARE_PREFIX}${item.id}`,
     name,
     cat,
     address: place.address ?? '',
@@ -204,7 +206,7 @@ export function applyDeletions(state: SyncedState, deletedIds: string[]): Synced
   // tombstone for the row has to take the pin with it — deleting the row on
   // the server is how a bad pin gets removed, and it would otherwise sit on
   // the map with nothing left behind it.
-  const sourceRow = (id: string) => (id.startsWith('share:') ? id.slice('share:'.length) : id);
+  const sourceRow = (id: string) => (id.startsWith(SHARE_PREFIX) ? id.slice(SHARE_PREFIX.length) : id);
   const edits: EventEdits = {};
   for (const [id, edit] of Object.entries(state.eventEdits)) {
     if (!gone.has(`edit:${id}`)) edits[id] = edit;
@@ -256,6 +258,33 @@ export function fingerprint(body: unknown): string {
   let h = 5381;
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   return `${text.length.toString(36)}.${(h >>> 0).toString(36)}`;
+}
+
+/**
+ * Every server row a deleted pin is responsible for.
+ *
+ * A pin the app created is one row under its own id. A pin built from a shared
+ * link is two: the row the app pushed back, and the extraction row the server
+ * made from the link. Both have to go, or the extraction row converts straight
+ * back into the pin on the next pass that reads it.
+ */
+export function rowsToDelete(pinId: string): string[] {
+  if (!pinId.startsWith(SHARE_PREFIX)) return [pinId];
+  return [pinId, pinId.slice(SHARE_PREFIX.length)];
+}
+
+/**
+ * Drops pins removed on this phone from a freshly merged state.
+ *
+ * The merge is a union, so a pin you removed comes straight back from the
+ * other phone's copy — or from a backup file written before you removed it —
+ * until the server's tombstone has reached everyone. This is what holds the
+ * line in the meantime.
+ */
+export function withoutRemovedPins(state: SyncedState, removed: Record<string, string>): SyncedState {
+  const ids = Object.keys(removed);
+  if (ids.length === 0) return state;
+  return { ...state, pins: state.pins.filter((p) => !removed[p.id]) };
 }
 
 export type PushMarks = Record<string, string>;

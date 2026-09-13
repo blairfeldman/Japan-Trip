@@ -10,7 +10,7 @@ import { SyncedState, mergeSynced } from './backup';
 import { RemoteItem } from './api';
 import {
   KIND, toOutgoing, fromIncoming, applyDeletions, fingerprint,
-  changedSincePush, markPushed, pinFromShareRow, pinCategory,
+  changedSincePush, markPushed, pinFromShareRow, pinCategory, rowsToDelete, withoutRemovedPins,
 } from './sync';
 
 /** Compare by content, not by whichever order the keys happen to be in. */
@@ -194,6 +194,30 @@ console.log('\n-- a link shared to the app comes back as a pin --');
   // phone gets it without having to reach the same server row.
   const out = toOutgoing({ ...full(), pins: [p!] }, 'B');
   check('it pushes back as an ordinary pin', out.some((o) => o.id === 'share:srv-1' && o.kind === KIND.pin));
+}
+
+console.log('\n-- removing a pin --');
+{
+  check('an ordinary pin is one row', JSON.stringify(rowsToDelete('p-kikanbo')) === JSON.stringify(['p-kikanbo']));
+  // Two rows: the pin the app pushed, and the extraction row the server built
+  // from the link. Miss the second and the pin walks back in.
+  check(
+    'a pin from a shared link is two',
+    JSON.stringify(rowsToDelete('share:abc-123')) === JSON.stringify(['share:abc-123', 'abc-123'])
+  );
+
+  const state = full();
+  const removed = { p1: '2026-09-20T11:00:00Z' };
+  check('a removed pin is dropped from a merge', withoutRemovedPins(state, removed).pins.length === 0);
+  check('others are untouched', withoutRemovedPins(state, { nope: 'x' }).pins.length === 1);
+  check('the rest of the state is left alone', withoutRemovedPins(state, removed).extraEvents.length === 1);
+
+  // The case this exists for: the other phone still has the pin and pushes it
+  // back before it has seen the tombstone.
+  const fromOtherPhone = fromIncoming(asRemote(state)).state;
+  const { state: merged } = mergeSynced({ ...state, pins: [] }, fromOtherPhone);
+  check('a plain merge hands it back', merged.pins.length === 1);
+  check('and the guard takes it away again', withoutRemovedPins(merged, removed).pins.length === 0);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

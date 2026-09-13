@@ -3,7 +3,7 @@ import { api, syncConfigured } from './api';
 import { SyncedState, mergeSynced, MergeSummary } from './backup';
 import {
   OutgoingItem, PushMarks, SyncOutcome, applyDeletions, changedSincePush,
-  fromIncoming, markPushed, toOutgoing,
+  fromIncoming, markPushed, rowsToDelete, toOutgoing,
 } from './sync';
 
 /**
@@ -19,9 +19,11 @@ const BOOKKEEPING_KEY = 'jt.sync.v1';
 interface Bookkeeping {
   cursor: number;
   marks: PushMarks;
+  /** Pin ids whose server rows have already been tombstoned. */
+  deleted: string[];
 }
 
-const EMPTY: Bookkeeping = { cursor: 0, marks: {} };
+const EMPTY: Bookkeeping = { cursor: 0, marks: {}, deleted: [] };
 
 /**
  * Deliberately not part of the backup file: the cursor is this phone's
@@ -36,6 +38,7 @@ async function loadBookkeeping(): Promise<Bookkeeping> {
     return {
       cursor: typeof parsed?.cursor === 'number' ? parsed.cursor : 0,
       marks: parsed?.marks && typeof parsed.marks === 'object' ? parsed.marks : {},
+      deleted: Array.isArray(parsed?.deleted) ? parsed.deleted : [],
     };
   } catch {
     return EMPTY;
@@ -74,7 +77,9 @@ let inFlight = false;
 export async function runSync(
   local: SyncedState,
   author: string,
-  onMerged: (merged: SyncedState, summary: MergeSummary) => void
+  onMerged: (merged: SyncedState, summary: MergeSummary) => void,
+  /** Pins removed on this phone, by id. See AppState's `deletedPins`. */
+  removedPins: string[] = []
 ): Promise<SyncOutcome> {
   if (!syncConfigured) return { ok: false, pulled: 0, pushed: 0, deleted: 0, reason: 'No backend configured' };
   if (inFlight) return { ok: false, pulled: 0, pushed: 0, deleted: 0, reason: 'Already syncing' };
@@ -82,6 +87,20 @@ export async function runSync(
 
   try {
     const book = await loadBookkeeping();
+    const tombstoned = new Set(book.deleted);
+
+    // --- deletions ------------------------------------------------------
+    // First, so this pass pulls back the tombstones it just created and both
+    // phones converge in one go. Each pin is only pushed once; a phone that
+    // was offline when you removed something catches up here.
+    for (const pinId of removedPins) {
+      if (tombstoned.has(pinId)) continue;
+      const results = await Promise.all(rowsToDelete(pinId).map((rowId) => api.deleteItem(rowId)));
+      // Partially through is not done: leave it pending rather than mark it
+      // gone with the extraction row still sitting there waiting to re-pin.
+      if (results.every((r) => r !== null)) tombstoned.add(pinId);
+    }
+
     let cursor = book.cursor;
     let working = local;
     let pulled = 0;
@@ -97,8 +116,10 @@ export async function runSync(
     for (let guard = 0; guard < 50; guard++) {
       const page = await api.listItems(cursor);
       if (!page) {
-        // Unreachable. Nothing has been written yet, so just stop — the next
-        // attempt starts from the same cursor.
+        // Unreachable. Stop at the cursor we came in on so the next attempt
+        // re-reads this page — but keep any tombstones this pass did manage
+        // to write, or they'd be sent again and churn the other phone's sync.
+        await saveBookkeeping({ cursor: book.cursor, marks: book.marks, deleted: [...tombstoned] });
         return { ok: false, pulled, pushed: 0, deleted: deletedCount, reason: "Couldn't reach the backend" };
       }
       if (page.items.length > 0) {
@@ -138,7 +159,7 @@ export async function runSync(
     // The cursor is saved together with the marks, and only after the rows
     // they describe are already merged into state — saving it earlier would
     // lose everything in this page if the app died here.
-    await saveBookkeeping({ cursor, marks: markPushed(book.marks, sent) });
+    await saveBookkeeping({ cursor, marks: markPushed(book.marks, sent), deleted: [...tombstoned] });
 
     return {
       ok: true,

@@ -31,7 +31,16 @@ export interface ItemPage {
 
 const TIMEOUT_MS = 15000;
 
-async function req<T>(path: string, init?: RequestInit): Promise<T | null> {
+interface ReqOptions {
+  /**
+   * Treat a 404 as success. Only for DELETE: a row that isn't there is the
+   * state we were asking for, and retrying forever against a row that was
+   * never pushed — a pin saved and removed while offline — is not.
+   */
+  missingIsFine?: boolean;
+}
+
+async function req<T>(path: string, init?: RequestInit, opts: ReqOptions = {}): Promise<T | null> {
   if (!syncConfigured) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -45,6 +54,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T | null> {
         ...(init?.headers ?? {}),
       },
     });
+    if (res.status === 404 && opts.missingIsFine) return {} as T;
     if (!res.ok) return null;
     if (res.status === 204) return {} as T;
     return (await res.json()) as T;
@@ -69,7 +79,9 @@ export const api = {
   putItem: (item: { id: string; kind: string; body: unknown; author: string }) =>
     req<RemoteItem>('/items', { method: 'POST', body: JSON.stringify(item) }),
 
-  deleteItem: (id: string) => req<{}>(`/items/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** Soft-deletes, leaving a tombstone the other phone picks up. */
+  deleteItem: (id: string) =>
+    req<{}>(`/items/${encodeURIComponent(id)}`, { method: 'DELETE' }, { missingIsFine: true }),
 
   /** Hands a shared link to the extraction pipeline. Returns a pending row. */
   analyzeShareUrl: (url: string, sharedText: string, author: string) =>

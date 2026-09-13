@@ -32,8 +32,11 @@ export function useSync() {
     if (!syncConfigured) return null;
     setBusy(true);
     try {
-      const outcome = await runSync(syncedFrom(stateRef.current), stateRef.current.me, (merged) =>
-        dispatch({ type: 'APPLY_MERGED', merged })
+      const outcome = await runSync(
+        syncedFrom(stateRef.current),
+        stateRef.current.me,
+        (merged) => dispatch({ type: 'APPLY_MERGED', merged }),
+        Object.keys(stateRef.current.deletedPins)
       );
       setLast(outcome);
       return outcome;
@@ -70,7 +73,7 @@ export function useSync() {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [state.hydrated, state.pins, state.extraEvents, state.eventEdits, state.decisions, state.inbox]);
+  }, [state.hydrated, state.pins, state.extraEvents, state.eventEdits, state.decisions, state.inbox, state.deletedPins]);
 
   return {
     configured: syncConfigured,

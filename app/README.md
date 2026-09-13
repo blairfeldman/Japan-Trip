@@ -203,6 +203,22 @@ Studio, the Android SDK and a JDK installed on Windows first.
    (`com.blairfeldman.japantrip`) if you're publishing this rather than
    just running it on your own device.
 
+## Removing a pin
+
+Open the pin and use **Remove this pin** at the bottom. It's a real deletion,
+not a local hide: the server row is tombstoned, and the other phone drops the
+pin on its next sync.
+
+Two details worth knowing. A pin that came from a shared TikTok owns *two*
+server rows — the pin itself and the extraction record the server built from
+the link — and both go, so sharing that link again starts the pipeline from
+scratch rather than handing back the old answer. And anything you'd already
+added to a day stays on the day; removing the pin doesn't rewrite your plan.
+
+Removals are remembered on the phone, so a pin can't walk back in from the
+other phone's copy, or from importing a backup file written before you removed
+it. Saving the same place again is you changing your mind, and it comes back.
+
 ## Which phone is which
 
 Both of you install the same APK, so the app can't tell the handsets apart on

@@ -21,6 +21,8 @@ export interface PersistedState {
   converter: { amount: string; dir: 'jpy' | 'usd' };
   /** Which phone this is. Per-device, so it is deliberately never synced. */
   me: Person;
+  /** Pins you removed, by id, so a merge can't hand them back. */
+  deletedPins: Record<string, string>;
 }
 
 export async function loadPersisted(): Promise<Partial<PersistedState> | null> {

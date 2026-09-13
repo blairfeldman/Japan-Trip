@@ -4,6 +4,8 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { CommonNav, CommonStackParamList } from '../navigation/types';
 import { useAppState } from '../store/AppState';
 import { Person } from '../types';
+import { TRIP } from '../data/trip';
+import { SHARE_PREFIX } from '../services/sync';
 import { DAYS } from '../data/trip';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { PrimaryButton, SecondaryButton } from '../components/ui';
@@ -20,6 +22,7 @@ export default function PinDetailScreen() {
   const route = useRoute<RouteProp<CommonStackParamList, 'PinDetail'>>();
   const { state, dispatch } = useAppState();
   const [added, setAdded] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const pin = useMemo(() => state.pins.find((p) => p.id === route.params?.pinId), [state.pins, route.params?.pinId]);
 
   if (!pin) {
@@ -38,6 +41,7 @@ export default function PinDetailScreen() {
   ];
 
   const latest = pin.clips[pin.clips.length - 1];
+  const sharedFromLink = pin.id.startsWith(SHARE_PREFIX);
   const cover = pin.clips.map((c) => c.thumbnailUrl).filter(Boolean)[0];
 
   return (
@@ -134,6 +138,37 @@ export default function PinDetailScreen() {
             }}
           />
         </View>
+
+        <View style={styles.dangerZone}>
+          {confirmDelete ? (
+            <>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <PrimaryButton
+                  label="Yes, remove it"
+                  style={{ backgroundColor: COLORS.magentaDeep }}
+                  onPress={() => {
+                    dispatch({ type: 'DELETE_PIN', pinId: pin.id });
+                    navigation.goBack();
+                  }}
+                />
+                <SecondaryButton label="Keep" onPress={() => setConfirmDelete(false)} />
+              </View>
+              <Text style={styles.dangerNote}>
+                {sharedFromLink
+                  ? 'This also clears what the server read out of the video, so sharing the link again starts fresh.'
+                  : 'It goes from both phones on the next sync.'}
+              </Text>
+            </>
+          ) : (
+            <>
+              <SecondaryButton label="Remove this pin" onPress={() => setConfirmDelete(true)} />
+              <Text style={styles.dangerNote}>
+                Removing it here removes it from {TRIP.travelers.find((t) => t.initial !== state.me)?.name ?? 'the other phone'}'s
+                too. Anything already added to a day stays where it is.
+              </Text>
+            </>
+          )}
+        </View>
       </View>
     </ScrollView>
   );
@@ -157,6 +192,8 @@ const styles = StyleSheet.create({
   dupeCallout: { backgroundColor: COLORS.magentaTint, borderLeftWidth: 3, borderLeftColor: COLORS.magenta, padding: 13, marginBottom: 20 },
   dupeLabel: { fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.magentaDeep, marginBottom: 5, fontFamily: FONT_SERIF_REGULAR },
   dupeText: { fontSize: 14.5, lineHeight: 20, color: COLORS.inkSoft, fontFamily: FONT_SERIF_REGULAR },
+  dangerZone: { borderTopWidth: 1, borderTopColor: COLORS.hairline, paddingTop: 20, marginTop: 26 },
+  dangerNote: { fontSize: 12, color: COLORS.labelFaint, lineHeight: 17, marginTop: 10, fontFamily: FONT_SERIF_REGULAR },
   factRow: { flexDirection: 'row', gap: 12, borderTopWidth: 1, borderTopColor: COLORS.hairline, paddingVertical: 12, alignItems: 'flex-start' },
   factText: { flex: 1, fontSize: 15.5, lineHeight: 20, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
   clipCard: { flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: '#fff', padding: 14, marginBottom: 20 },

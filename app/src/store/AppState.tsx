@@ -7,6 +7,7 @@ import { WeatherNow } from '../services/weather';
 import { LatLng } from '../services/location';
 import { loadPersisted, savePersisted, PersistedState } from '../services/persist';
 import { SyncedState } from '../services/backup';
+import { withoutRemovedPins } from '../services/sync';
 import { EventEdits, EventPatch, diffPatch, seedEvent } from '../services/schedule';
 import { Decisions } from '../data/budget';
 import { isoDateOnly } from '../utils/time';
@@ -42,6 +43,15 @@ interface State {
    * synced slice because it describes the device, not the trip.
    */
   me: Person;
+  /**
+   * Pins removed here, by id, with when.
+   *
+   * A merge is a union, so "no longer in my list" says nothing — the other
+   * phone still has it and hands it straight back. Remembering the removal is
+   * what makes it stick, both until the server's tombstone has been round the
+   * houses and, later, when an old backup file is imported.
+   */
+  deletedPins: Record<string, string>;
   hydrated: boolean;
 }
 
@@ -52,6 +62,7 @@ type Action =
   | { type: 'CLEAR_CAT_FILTERS' }
   | { type: 'SET_OFFLINE'; value: boolean }
   | { type: 'ADD_PIN'; pin: SavedPin }
+  | { type: 'DELETE_PIN'; pinId: string }
   | { type: 'SET_PIN_CAT'; pinId: string; cat: Category }
   | { type: 'ADD_CLIP_TO_PIN'; pinId: string; clip: SavedPin['clips'][number] }
   | { type: 'ADD_INBOX_TO_DAY'; id: string; day: number; event: ItineraryEvent }
@@ -88,6 +99,7 @@ const initialState: State = {
   decisions: {},
   eventEdits: {},
   me: 'B',
+  deletedPins: {},
   hydrated: false,
 };
 
@@ -98,6 +110,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         ...(action.saved ?? {}),
         decisions: migrateDecisions(action.saved?.decisions),
+        deletedPins: action.saved?.deletedPins ?? {},
         eventEdits: action.saved?.eventEdits ?? {},
         // Seed data is the floor: a saved-but-empty pin list shouldn't wipe
         // the places that shipped with the app.
@@ -115,8 +128,19 @@ function reducer(state: State, action: Action): State {
       return { ...state, catFilters: {} };
     case 'SET_OFFLINE':
       return { ...state, offline: action.value };
-    case 'ADD_PIN':
-      return { ...state, pins: [action.pin, ...state.pins] };
+    case 'ADD_PIN': {
+      // Saving a pin you'd previously removed is you changing your mind, so
+      // the removal stops applying — otherwise the next merge would quietly
+      // take it away again.
+      const { [action.pin.id]: _undeleted, ...deletedPins } = state.deletedPins;
+      return { ...state, pins: [action.pin, ...state.pins], deletedPins };
+    }
+    case 'DELETE_PIN':
+      return {
+        ...state,
+        pins: state.pins.filter((p) => p.id !== action.pinId),
+        deletedPins: { ...state.deletedPins, [action.pinId]: new Date().toISOString() },
+      };
     case 'SET_PIN_CAT':
       return { ...state, pins: state.pins.map((p) => (p.id === action.pinId ? { ...p, cat: action.cat } : p)) };
     case 'ADD_CLIP_TO_PIN':
@@ -181,9 +205,11 @@ function reducer(state: State, action: Action): State {
       return { ...state, eventEdits: next };
     }
     // The caller runs mergeSynced so it can show what changed; this just
-    // commits the result.
+    // commits the result — minus anything removed here, which a union merge
+    // would otherwise bring back from the other phone or from a backup file
+    // written before the removal.
     case 'APPLY_MERGED':
-      return { ...state, ...action.merged };
+      return { ...state, ...withoutRemovedPins(action.merged, state.deletedPins) };
     default:
       return state;
   }
@@ -233,6 +259,7 @@ function persistable(state: State): PersistedState {
     catFilters: state.catFilters,
     converter: state.converter,
     me: state.me,
+    deletedPins: state.deletedPins,
   };
 }
 
@@ -263,6 +290,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     state.catFilters,
     state.converter,
     state.me,
+    state.deletedPins,
   ]);
 
   const value = useMemo(() => ({ state, dispatch }), [state]);
