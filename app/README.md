@@ -91,9 +91,22 @@ build that looked fine locally.
 npx.cmd eas-cli env:set --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value "<your key>" --visibility sensitive --environment preview --environment development --environment production
 ```
 
+The same applies to the sync backend. Set these two as well, or the build
+comes out local-only — no syncing between phones, and shared TikToks parsed
+on the phone from the caption alone:
+
+```powershell
+npx.cmd eas-cli env:set --name EXPO_PUBLIC_API_BASE_URL --value "https://<your-app>.fly.dev" --visibility plaintext --environment preview --environment development --environment production
+npx.cmd eas-cli env:set --name EXPO_PUBLIC_API_TOKEN --value "<the APP_TOKEN from fly secrets>" --visibility sensitive --environment preview --environment development --environment production
+```
+
 EAS variables are scoped per *environment*, and each profile in `eas.json`
 names the environment it pulls from (`preview` → `preview`, and so on) — so
 set it in all three and the profile you build won't matter.
+
+Changing a variable does **not** rebuild anything: the value is baked into
+the APK at build time, so after any `env:set` you need a fresh build for it
+to take effect.
 
 ### The build you actually want
 
