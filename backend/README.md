@@ -92,18 +92,34 @@ python test_api.py && python test_share.py && python test_invariants.py
 
 ## Deploy
 
-```bash
-brew install flyctl && fly auth login
-fly launch --no-deploy --name YOUR-APP-NAME --region sjc
-#   decline the Postgres/Redis offer; re-check fly.toml if launch rewrote it
-fly volumes create data --size 1 --region sjc   # must match [mounts].source AND the region
-fly secrets set APP_TOKEN=$(openssl rand -hex 32)   # copy it; both phones need it
+Install flyctl — **Windows (PowerShell)**:
+
+```powershell
+iwr https://fly.io/install.ps1 -useb | iex
+```
+
+macOS/Linux: `brew install flyctl` or `curl -L https://fly.io/install.sh | sh`.
+
+Then, from this directory:
+
+```powershell
+fly auth signup            # or: fly auth login
+fly launch --no-deploy --name YOUR-APP-NAME --region nrt
+#   decline the Postgres/Redis offer
+#   if launch rewrites fly.toml, check the scaling guard survived
+fly volumes create data --size 1 --region nrt   # must match [mounts].source AND the region
+fly secrets set APP_TOKEN=<a long random string>   # copy it; both phones need it
 fly secrets set ANTHROPIC_API_KEY=sk-ant-...
 fly secrets set GOOGLE_MAPS_API_KEY=...
 fly deploy
 fly scale count 1                               # confirm — see the invariant above
+fly status                                      # expect exactly one machine
 curl https://YOUR-APP-NAME.fly.dev/health
 ```
+
+Fly no longer has a standing free tier — new accounts get a short trial and
+then need a card on file. This runs about $2–3/month. Set a spend limit under
+Billing once the account exists.
 
 Then point the app at it: `EXPO_PUBLIC_API_BASE_URL` and
 `EXPO_PUBLIC_API_TOKEN`, set both in `app/.env` and as EAS environment

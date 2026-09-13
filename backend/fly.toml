@@ -1,6 +1,8 @@
-# Replace APP_NAME, and pick a region near you: fly platform regions
+# Replace APP_NAME. Region is nrt (Tokyo): the app matters most during the
+# trip, and at home the extra hop is imperceptible for small JSON syncs.
+# The volume must be created in this same region or it won't attach.
 app = "APP_NAME"
-primary_region = "sjc"
+primary_region = "nrt"
 
 [build]
 
