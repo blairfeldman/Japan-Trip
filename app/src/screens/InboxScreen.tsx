@@ -311,7 +311,7 @@ export default function InboxScreen() {
             Pins, day plans and decisions sync with {TRIP.travelers[1]?.name ?? 'the other phone'} automatically —
             when the app opens and a few seconds after you change something.
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12, marginBottom: 22 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
             <SecondaryButton label={sync.busy ? 'Syncing…' : 'Sync now'} onPress={() => sync.sync()} />
             {!!sync.status && (
               <Text style={[styles.syncStatus, { color: sync.last?.ok ? COLORS.label : COLORS.magentaDeep }]}>
@@ -319,6 +319,13 @@ export default function InboxScreen() {
               </Text>
             )}
           </View>
+          <Pressable onPress={() => sync.resync()} disabled={sync.busy} style={{ paddingVertical: 12, marginBottom: 10 }}>
+            <Text style={styles.resyncLink}>Re-read everything from the start</Text>
+          </Pressable>
+          <Text style={[styles.backupCounts, { marginTop: 0, marginBottom: 22, lineHeight: 17 }]}>
+            Ordinary syncing only asks for what's new. Use this if something you saved on the other phone never
+            turned up — it re-reads the whole trip rather than picking up where it left off.
+          </Text>
         </>
       )}
 
@@ -354,6 +361,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backBtn: { width: 38, height: 38, marginLeft: -9, alignItems: 'center', justifyContent: 'center' },
+  resyncLink: { fontSize: 13.5, color: COLORS.link, textDecorationLine: 'underline', fontFamily: FONT_SERIF_REGULAR },
   meChip: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.border, borderRadius: 2, paddingHorizontal: 12, paddingVertical: 9, minHeight: 40 },
   meDot: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   meDotText: { color: '#fff', fontSize: 11, fontWeight: '600', fontFamily: FONT_SERIF },

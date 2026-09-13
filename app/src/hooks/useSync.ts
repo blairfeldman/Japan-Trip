@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
 import { useAppState, syncedFrom } from '../store/AppState';
 import { syncConfigured } from '../services/api';
-import { runSync, describeSync } from '../services/syncRun';
+import { runSync, describeSync, rewindCursor } from '../services/syncRun';
 import { SyncOutcome } from '../services/sync';
 
 /**
@@ -42,6 +42,16 @@ export function useSync() {
     }
   }, [dispatch]);
 
+  /**
+   * Re-read the whole server, not just what's new. Slower and almost never
+   * needed — it's the recovery path for rows an older build pulled and
+   * couldn't make sense of, which the cursor has since moved past.
+   */
+  const resync = useCallback(async (): Promise<SyncOutcome | null> => {
+    await rewindCursor();
+    return sync();
+  }, [sync]);
+
   // On mount, and whenever the app is reopened.
   useEffect(() => {
     if (!syncConfigured || !state.hydrated) return;
@@ -68,5 +78,6 @@ export function useSync() {
     last,
     status: last ? describeSync(last) : null,
     sync,
+    resync,
   };
 }

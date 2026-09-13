@@ -50,6 +50,24 @@ async function saveBookkeeping(b: Bookkeeping): Promise<void> {
   }
 }
 
+/**
+ * Forget this phone's position in the server's history so the next pass reads
+ * it from the beginning.
+ *
+ * Needed because the cursor advances past rows this build couldn't use. A row
+ * the app skipped — a share the extraction pipeline had filled in, say — is
+ * never offered again, so a fix that teaches the app to read it arrives too
+ * late for everything already skipped. This is the way back.
+ *
+ * The push marks are kept: the point is to re-read the server, not to
+ * re-upload everything this phone holds and make the other one re-read in
+ * turn.
+ */
+export async function rewindCursor(): Promise<void> {
+  const book = await loadBookkeeping();
+  await saveBookkeeping({ ...book, cursor: 0 });
+}
+
 /** Only one pass at a time — a second would push the same rows twice. */
 let inFlight = false;
 

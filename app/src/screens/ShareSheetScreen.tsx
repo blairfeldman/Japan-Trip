@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { api, syncConfigured, RemoteItem } from '../services/api';
 import { findPinBySourceUrl } from '../services/backup';
+import { pinFromShareRow } from '../services/sync';
 import { describeSharedLink } from '../utils/shareLink';
 import { parseSharedVideo, ParsedShare } from '../services/shareParse';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
@@ -63,7 +64,19 @@ export default function ShareSheetScreen() {
             if (cancelled) return;
             if (latest && latest.status !== 'pending') {
               setRemote(latest);
-              setStatus(latest.body?.place ? 'server-pinned' : 'server-review');
+              // Pin it here rather than waiting for a sync pass. The row is
+              // already in hand, and "Done" drops you back on a map that
+              // ought to have the place on it — a sync only runs on the next
+              // foreground or a few seconds after some other local change,
+              // which reads as nothing having happened.
+              //
+              // The id is derived from the row, so when sync does pull the
+              // same row it merges onto this pin instead of adding a second.
+              const pin = pinFromShareRow(latest);
+              if (pin && !state.pins.some((p) => p.id === pin.id)) {
+                dispatch({ type: 'ADD_PIN', pin });
+              }
+              setStatus(pin ? 'server-pinned' : 'server-review');
               return;
             }
             await new Promise((r) => setTimeout(r, 1500));
