@@ -1,0 +1,34 @@
+# Replace APP_NAME, and pick a region near you: fly platform regions
+app = "APP_NAME"
+primary_region = "sjc"
+
+[build]
+
+[env]
+  DATA_DIR = "/data"
+
+# The SQLite file lives here. Volumes are per-machine, which is exactly why
+# this app must stay at one machine — see auto_stop/min_machines below.
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Never scale past one machine: a second would get its own empty volume and
+  # you would silently have two diverging databases, with no error anywhere.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

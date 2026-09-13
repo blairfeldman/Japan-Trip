@@ -7,9 +7,12 @@ A trip-planning Android app for Blair & Yev's Sept 25 – Oct 6 Japan trip
   for what's genuinely live (weather, GPS, notifications, currency, on-device
   TTS, geocoding) vs. what needs you to add an account/key (Google Maps,
   the backend, a real forwarded-booking email address).
-- **`server/`** — the backend behind shared pins, the forwarded-booking
-  inbox, and the TikTok/Instagram share-link parsing pipeline. See
-  **`server/README.md`**.
+- **`backend/`** — the Fly-hosted sync backend: one shared database both
+  phones read and write, plus the share-to-pin pipeline (Claude reads the
+  caption, Google Places locates it). The app is local-first and runs fine
+  without it. See **`backend/README.md`**.
+- **`server/`** — the earlier Node prototype of the same idea. Never deployed,
+  superseded by `backend/`, kept only so it can be reviewed before deleting.
 
 ## Where this came from
 
