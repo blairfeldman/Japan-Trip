@@ -129,9 +129,32 @@ Without `ANTHROPIC_API_KEY` or `GOOGLE_MAPS_API_KEY` the app still boots and
 ordinary sync works; shares fail into `status: failed` with the missing-key
 reason in `review_reason`, and `/parse-booking` returns `503`.
 
-The server Google key must be a **different** key from the one in the APK: the
-Android key is restricted to your package + signing certificate, this one is
-restricted by API. Never ship the server key in the app.
+### The server's Google key
+
+It must be a **different** key from the one in the APK. The Android key is
+restricted to your package + signing certificate, so this one can't reuse it.
+
+**Set Application restrictions to "None"** — none of Google's three options fit
+a server. "Websites" is for browser JavaScript, "Android apps" is the APK key,
+and IP restriction breaks here: Fly machines egress through a shared NAT pool
+whose address changes when a machine is recreated or moved
+(https://fly.io/docs/networking/egress-ips/), so an IP allowlist would work
+until some unrelated redeploy and then fail silently.
+
+Two controls carry the weight instead:
+
+- **API restrictions → Places API (New) only.** A leaked key can then do
+  nothing but place lookups.
+- **A daily quota cap** on that API (Quotas in the Cloud console). Two people
+  won't approach 100 requests/day, and a cap bounds the damage from an abused
+  key to pennies.
+
+That's a different threat model from the Android key, which ships inside an APK
+anyone can unzip. This one only ever exists in `fly secrets`.
+
+If you later want IP restriction, Fly sells app-scoped static egress IPs at
+about $3.60/month per region — roughly triple the cost of the machine itself,
+so it isn't worth it at this size.
 
 Day to day: `fly logs`, `fly ssh console`, `fly deploy`, `fly secrets list`.
 
