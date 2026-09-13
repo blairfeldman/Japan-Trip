@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { CommonNav, CommonStackParamList } from '../navigation/types';
 import { useAppState } from '../store/AppState';
 import { resolveEvent, isEdited } from '../services/schedule';
 import { DAYS, TRIP } from '../data/trip';
@@ -11,8 +12,8 @@ import { Icon } from '../components/Icon';
 import { hourToClock } from '../utils/time';
 
 export default function EventDetailScreen() {
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
+  const navigation = useNavigation<CommonNav>();
+  const route = useRoute<RouteProp<CommonStackParamList, 'EventDetail'>>();
   const { state } = useAppState();
   const eventId: string = route.params?.eventId;
 

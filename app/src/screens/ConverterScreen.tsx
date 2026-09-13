@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MoneyNav } from '../navigation/types';
 import { useAppState } from '../store/AppState';
 import { fetchFxRate } from '../services/currency';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
@@ -20,7 +21,7 @@ function formatEntry(raw: string): string {
 }
 
 export default function ConverterScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<MoneyNav>();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
 

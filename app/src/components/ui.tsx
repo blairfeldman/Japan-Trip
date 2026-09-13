@@ -34,6 +34,7 @@ export function DoubleRule({ style }: { style?: ViewStyle }) {
   );
 }
 
+/** The big serif heading at the top of a tab. */
 export function ScreenTitle({ children }: { children: React.ReactNode }) {
   return <Text style={styles.h2}>{children}</Text>;
 }
@@ -128,7 +129,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: FONT_SERIF,
     color: COLORS.ink,
-    letterSpacing: -0.3,
   },
   primaryBtn: {
     flex: 1,

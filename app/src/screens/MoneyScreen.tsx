@@ -2,13 +2,14 @@ import React, { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MoneyNav } from '../navigation/types';
 import { useAppState } from '../store/AppState';
 import { useClock } from '../hooks/useClock';
 import { DAYS, TRIP } from '../data/trip';
 import { applyDecisions, BUDGET_ITEMS, tripTotals } from '../data/budget';
 import { fetchFxRate } from '../services/currency';
-import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
-import { CategoryDot, DoubleRule, PrimaryButton, SecondaryButton, SectionLabel } from '../components/ui';
+import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
+import { CategoryDot, DoubleRule, PrimaryButton, ScreenTitle, SecondaryButton, SectionLabel } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { isoDateOnly } from '../utils/time';
 import { usd, jpy } from '../utils/format';
@@ -23,7 +24,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 }
 
 export default function MoneyScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<MoneyNav>();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
   const now = useClock();
@@ -60,7 +61,7 @@ export default function MoneyScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 40 }}>
       <View style={styles.headRow}>
-        <Text style={styles.h2}>Money</Text>
+        <ScreenTitle>Money</ScreenTitle>
         <Pressable onPress={() => navigation.navigate('Converter')} style={styles.convertBtn}>
           <Icon name="CurrencyJpy" size={16} color={COLORS.accent} />
           <Text style={styles.convertText}>Convert</Text>
@@ -154,7 +155,6 @@ export default function MoneyScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  h2: { fontSize: 31, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   convertBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 2, minHeight: 36 },
   convertText: { fontSize: 13.5, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
   bigTotal: { fontSize: 42, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink, letterSpacing: -0.6 },

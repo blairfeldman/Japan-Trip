@@ -2,13 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PhrasesNav } from '../navigation/types';
 import { PHRASES, SITUATIONS } from '../data/phrases';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
-import { DoubleRule } from '../components/ui';
+import { DoubleRule, ScreenTitle } from '../components/ui';
 import { Icon, IconName } from '../components/Icon';
 
 export default function PhrasesScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<PhrasesNav>();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
 
@@ -29,7 +30,7 @@ export default function PhrasesScreen() {
       contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.h2}>Phrases</Text>
+      <ScreenTitle>Phrases</ScreenTitle>
       <DoubleRule style={{ marginTop: 14, marginBottom: 18 }} />
 
       <View style={styles.searchBar}>
@@ -71,7 +72,6 @@ export default function PhrasesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
-  h2: { fontSize: 31, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 2, paddingHorizontal: 12, height: 46, marginBottom: 22 },
   searchInput: { flex: 1, fontSize: 15.5, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, borderTopWidth: 1, borderTopColor: COLORS.hairline, paddingVertical: 15, minHeight: 56 },

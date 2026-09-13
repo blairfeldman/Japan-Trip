@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PhrasesNav, PhrasesStackParamList } from '../navigation/types';
 import { phrasesFor, SITUATIONS } from '../data/phrases';
 import { Phrase } from '../types';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
@@ -9,9 +10,9 @@ import { Icon } from '../components/Icon';
 import { playPractice, speakShort, stopSpeaking, PracticePlayback } from '../services/speech';
 
 export default function PhrasePracticeScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<PhrasesNav>();
   const insets = useSafeAreaInsets();
-  const route = useRoute<any>();
+  const route = useRoute<RouteProp<PhrasesStackParamList, 'PhrasePractice'>>();
   const situationId: string = route.params?.situationId;
   const situation = SITUATIONS.find((s) => s.id === situationId);
   const phrases = phrasesFor(situationId);

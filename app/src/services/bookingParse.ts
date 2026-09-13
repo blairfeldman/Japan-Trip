@@ -193,7 +193,7 @@ export async function parseBookingWithModel(text: string): Promise<ParsedBooking
       ? (res.kind as ParsedBooking['kind'])
       : 'Activity',
     title: res.title || 'Booking',
-    // Keep "paid" in the sub: bookingToEvent reads it back to set the tag.
+    // Keep "paid" in the sub: isPrepaid reads it back to set the budget tag.
     sub: res.prepaid && !/paid/i.test(sub) ? `${sub} · paid` : sub,
     confidence: res.confidence === 'Confident' ? 'Confident' : 'Check date',
     day,
@@ -218,6 +218,20 @@ const KIND_HOURS: Record<InboxBooking['kind'], number> = {
   Activity: 1,
 };
 
+/**
+ * Money already spent, or money still to spend? It drives the budget tag, and
+ * getting it wrong moves real numbers on the Money screen.
+ *
+ * Explicit wording wins both ways. Failing that, the kind decides: a seat you
+ * hold a reference for was bought at booking time, whereas a table you
+ * reserved is paid when you leave.
+ */
+function isPrepaid(kind: InboxBooking['kind'], sub: string): boolean {
+  if (/pay (at|on) the (counter|door)|pay there|pay on arrival/i.test(sub)) return false;
+  if (/paid|prepaid|payment received/i.test(sub)) return true;
+  return (kind === 'Flight' || kind === 'Train') && /\bconf\.?\b|\bPNR\b|\bticket(ed)?\b/i.test(sub);
+}
+
 /** Straight to a day-plan entry, keeping the time and confirmation we parsed. */
 export function bookingToEvent(p: ParsedBooking, day: number, id: string): ItineraryEvent {
   const start = p.startHour ?? 12;
@@ -229,7 +243,7 @@ export function bookingToEvent(p: ParsedBooking, day: number, id: string): Itine
     cat: KIND_CAT[p.kind],
     title: p.title,
     sub: p.sub,
-    tag: /paid|prepaid|payment received/i.test(p.sub) ? 'Prepaid' : 'Pay there',
+    tag: isPrepaid(p.kind, p.sub) ? 'Prepaid' : 'Pay there',
     booking: {
       confirmation: p.confirmation,
       reserved: 'Added from a confirmation',
@@ -237,23 +251,26 @@ export function bookingToEvent(p: ParsedBooking, day: number, id: string): Itine
   };
 }
 
-const KIND_ICON: Record<InboxBooking['kind'], string> = {
-  Flight: 'AirplaneTakeoff',
-  Train: 'TrainRegional',
-  Restaurant: 'ForkKnife',
-  Hotel: 'Bathtub',
-  Activity: 'CalendarCheck',
-};
-
-export function bookingToInbox(p: ParsedBooking, id: string): InboxBooking {
-  return {
-    id,
-    kind: p.kind,
-    icon: KIND_ICON[p.kind],
-    confidence: p.confidence,
-    title: p.title,
-    sub: p.sub,
-    day: p.day ?? 1,
-    raw: p.confirmation,
-  };
+/**
+ * The same trip, starting from an Inbox card rather than pasted text.
+ *
+ * Inbox cards carry their details in a display string rather than fields, so
+ * the time comes back out of the subtitle. Everything downstream — duration,
+ * category, prepaid or not — goes through `bookingToEvent`, so the two routes
+ * into a day can't drift apart.
+ */
+export function inboxToEvent(b: InboxBooking, day: number): ItineraryEvent {
+  return bookingToEvent(
+    {
+      kind: b.kind,
+      title: b.title,
+      sub: b.sub,
+      confidence: b.confidence,
+      startHour: timeFromText(b.sub),
+      confirmation: b.raw,
+    },
+    day,
+    `${b.id}-event`
+  );
 }
+

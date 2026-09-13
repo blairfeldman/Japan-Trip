@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { CommonNav, CommonStackParamList } from '../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { DAYS } from '../data/trip';
 import { Category, ItineraryEvent, Tag } from '../types';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
-import { CategoryDot, PrimaryButton, SecondaryButton, SectionLabel } from '../components/ui';
+import { CategoryDot, PrimaryButton, SecondaryButton } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { formatClock, isSeedEvent, parseClock, resolveEvent, seedEvent } from '../services/schedule';
 import { newId } from '../utils/id';
@@ -24,9 +25,9 @@ const TAGS: { value: Tag; label: string }[] = [
  * always put back what the spreadsheet said. See services/schedule.ts.
  */
 export default function EditEventScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<CommonNav>();
   const insets = useSafeAreaInsets();
-  const route = useRoute<any>();
+  const route = useRoute<RouteProp<CommonStackParamList, 'EditEvent'>>();
   const { state, dispatch } = useAppState();
 
   const eventId: string | undefined = route.params?.eventId;

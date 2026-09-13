@@ -3,6 +3,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MapNav } from '../navigation/types';
 import { useAppState } from '../store/AppState';
 import { DAYS, cityCoordsFor } from '../data/trip';
 import { resolveDayEvents } from '../services/schedule';
@@ -11,9 +12,10 @@ import { CategoryDot } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { getCurrentLocation, distanceMeters } from '../services/location';
 import { canRenderMap } from '../env';
+import { Category } from '../types';
 
 export default function MapScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<MapNav>();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
   const mapRef = useRef<MapView | null>(null);
@@ -55,9 +57,13 @@ export default function MapScreen() {
       .slice(0, 3);
   }, [visiblePins, state.location]);
 
-  const filters = [{ k: 'all', label: `All ${state.pins.length}` }, ...Object.keys(CATEGORY)
-    .filter((k) => k !== 'transit')
-    .map((k) => ({ k, label: CATEGORY[k as keyof typeof CATEGORY].label }))];
+  const filters: { k: 'all' | Category; label: string }[] = [
+    { k: 'all', label: `All ${state.pins.length}` },
+    // Transit is a day-plan category, never a saved place.
+    ...(Object.keys(CATEGORY) as Category[])
+      .filter((k) => k !== 'transit')
+      .map((k) => ({ k, label: CATEGORY[k].label })),
+  ];
 
   return (
     <View style={styles.screen}>
@@ -129,10 +135,10 @@ export default function MapScreen() {
             return (
               <Pressable
                 key={f.k}
-                onPress={() => (f.k === 'all' ? dispatch({ type: 'CLEAR_CAT_FILTERS' }) : dispatch({ type: 'TOGGLE_CAT_FILTER', cat: f.k as any }))}
+                onPress={() => (f.k === 'all' ? dispatch({ type: 'CLEAR_CAT_FILTERS' }) : dispatch({ type: 'TOGGLE_CAT_FILTER', cat: f.k }))}
                 style={[styles.filterChip, { borderColor: active ? COLORS.ink : COLORS.border, backgroundColor: '#fff' }]}
               >
-                {f.k !== 'all' && <CategoryDot cat={f.k as any} size={8} />}
+                {f.k !== 'all' && <CategoryDot cat={f.k} size={8} />}
                 <Text style={[styles.filterText, { color: active ? COLORS.ink : COLORS.labelFaint }]}>{f.label}</Text>
               </Pressable>
             );

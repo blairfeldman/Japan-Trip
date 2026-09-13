@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NowNav } from '../navigation/types';
 import { useAppState } from '../store/AppState';
 import { useClock } from '../hooks/useClock';
 import { DAYS, cityCoordsFor, dayMetaForDate } from '../data/trip';
@@ -35,7 +36,7 @@ function useTripPhase(now: Date) {
 }
 
 export default function NowScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NowNav>();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
   const now = useClock();

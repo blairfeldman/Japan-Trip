@@ -32,7 +32,7 @@ export function useSync() {
     if (!syncConfigured) return null;
     setBusy(true);
     try {
-      const outcome = await runSync(syncedFrom(stateRef.current), 'blair', (merged) =>
+      const outcome = await runSync(syncedFrom(stateRef.current), stateRef.current.me, (merged) =>
         dispatch({ type: 'APPLY_MERGED', merged })
       );
       setLast(outcome);

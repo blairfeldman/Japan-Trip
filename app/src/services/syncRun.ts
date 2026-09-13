@@ -50,10 +50,6 @@ async function saveBookkeeping(b: Bookkeeping): Promise<void> {
   }
 }
 
-export async function resetSyncCursor(): Promise<void> {
-  await AsyncStorage.removeItem(BOOKKEEPING_KEY).catch(() => {});
-}
-
 /** Only one pass at a time — a second would push the same rows twice. */
 let inFlight = false;
 

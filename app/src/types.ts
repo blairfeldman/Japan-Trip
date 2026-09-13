@@ -36,6 +36,9 @@ export interface ItineraryEvent {
   photoCaption?: string;
 }
 
+/** Which of the two of you. `TRIP.travelers` carries the names. */
+export type Person = 'B' | 'Y';
+
 export interface SavedPin {
   id: string;
   name: string;
@@ -44,14 +47,14 @@ export interface SavedPin {
   lat: number;
   lng: number;
   sub: string;
-  who: 'B' | 'Y' | 'both';
+  who: Person | 'both';
   note?: string;
   hours?: string;
   price?: string;
   clips: {
     handle: string;
     caption: string;
-    savedBy: 'B' | 'Y';
+    savedBy: Person;
     savedAt: string;
     sourceUrl?: string;
     /** Cover frame from the video, when the share could be read. */

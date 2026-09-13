@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Category, InboxBooking, ItineraryEvent, SavedPin } from '../types';
+import { Category, InboxBooking, ItineraryEvent, Person, SavedPin } from '../types';
 import { Decisions } from '../data/budget';
 import { EventEdits } from './schedule';
 
@@ -19,6 +19,8 @@ export interface PersistedState {
   eventEdits: EventEdits;
   catFilters: Partial<Record<Category, boolean>>;
   converter: { amount: string; dir: 'jpy' | 'usd' };
+  /** Which phone this is. Per-device, so it is deliberately never synced. */
+  me: Person;
 }
 
 export async function loadPersisted(): Promise<Partial<PersistedState> | null> {
@@ -38,13 +40,5 @@ export async function savePersisted(state: PersistedState): Promise<void> {
     await AsyncStorage.setItem(KEY, JSON.stringify(state));
   } catch {
     // Out of space or storage unavailable; the in-memory session still works.
-  }
-}
-
-export async function clearPersisted(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(KEY);
-  } catch {
-    // nothing to do
   }
 }

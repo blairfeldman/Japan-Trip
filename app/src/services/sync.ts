@@ -1,8 +1,9 @@
-import { InboxBooking, ItineraryEvent, SavedPin } from '../types';
+import { Category, InboxBooking, ItineraryEvent, Person, SavedPin } from '../types';
 import { Decisions, Decision } from '../data/budget';
 import { EventEdit, EventEdits } from './schedule';
 import { SyncedState } from './backup';
 import { RemoteItem } from './api';
+import { CATEGORY } from '../theme';
 
 /**
  * Mapping between the app's records and the backend's single `items` table.
@@ -49,6 +50,99 @@ export function toOutgoing(state: SyncedState, author: string): OutgoingItem[] {
 }
 
 /**
+ * A row the *server* created, from a link shared to the app.
+ *
+ * These come back under the same `place` kind as the app's own pins, but their
+ * body is the extraction pipeline's record (`post`, `extraction`, `place`),
+ * not a SavedPin — no `id`, no `cat`, no `clips`. They were being dropped on
+ * the way in, which meant a video you shared was read, geocoded and stored on
+ * the server and then never appeared on either phone, despite the share sheet
+ * promising it would show up on the next sync.
+ */
+interface ShareBody {
+  source_url?: string;
+  canonical_url?: string;
+  post?: { caption?: string; author?: string; thumbnail_url?: string };
+  extraction?: { place_name?: string; city?: string; category?: string; confidence?: string };
+  recommendation?: string;
+  review_reason?: string;
+  place?: { name?: string; address?: string; lat?: number; lng?: number };
+}
+
+/** The server's coarse category, narrowed by what the post actually says. */
+const SERVER_CAT: Record<string, Category> = {
+  restaurant: 'food',
+  bar: 'food',
+  cafe: 'food',
+  hotel: 'hotel',
+  shop: 'shopping',
+  attraction: 'sightseeing',
+  other: 'sightseeing',
+};
+
+export function pinCategory(serverCat: string | undefined, text: string): Category {
+  // The model only knows the generic set; ramen/sushi/matcha are this app's
+  // own distinctions and are worth keeping, since they drive the map filters.
+  if (/ramen|tsukemen|noodle/i.test(text)) return 'ramen';
+  if (/sushi|omakase|sashimi|kaiten/i.test(text)) return 'sushi';
+  if (/matcha|green tea|teahouse|tea house|wagashi/i.test(text)) return 'matcha';
+  return SERVER_CAT[(serverCat ?? '').toLowerCase()] ?? 'sightseeing';
+}
+
+/**
+ * Turns one of those rows into a pin, or null if it isn't one yet.
+ *
+ * Null covers the rows that legitimately have nowhere to go on a map: still
+ * being processed, no place named in the caption, or no map match. Those keep
+ * their `seq` bumped each time the worker touches them, so once the pipeline
+ * does land a location the row simply arrives again and converts then.
+ *
+ * The id is prefixed rather than reused so pushing the pin back creates the
+ * app's own record instead of overwriting the server's extraction log — and
+ * because it's derived, both phones produce the same id and converge.
+ */
+export function pinFromShareRow(item: RemoteItem): SavedPin | null {
+  const body = (item.body ?? {}) as ShareBody;
+  const place = body.place;
+  if (!place || !Number.isFinite(place.lat) || !Number.isFinite(place.lng)) return null;
+
+  const post = body.post ?? {};
+  const caption = post.caption ?? '';
+  const name = place.name || body.extraction?.place_name || caption.slice(0, 60) || 'Saved place';
+  const sourceUrl = body.canonical_url || body.source_url || item.source_url || undefined;
+  const cat = pinCategory(body.extraction?.category, `${name} ${caption}`);
+  // Sharing a link goes through the backend both of you talk to, so the pin
+  // belongs to the trip. Who actually found it is kept on the clip.
+  const savedBy: Person = item.author === 'Y' ? 'Y' : 'B';
+
+  return {
+    id: `share:${item.id}`,
+    name,
+    cat,
+    address: place.address ?? '',
+    lat: place.lat as number,
+    lng: place.lng as number,
+    // Every other pin carries a one-line subtitle; fall back the way Add Pin does.
+    sub: body.recommendation || CATEGORY[cat].label,
+    who: 'both',
+    // The pipeline's own doubts, kept where they'll be read: "check this pin"
+    // is only useful next to the pin.
+    note: body.review_reason,
+    clips: [
+      {
+        handle: post.author ?? '',
+        caption,
+        savedBy,
+        savedAt: item.created_at,
+        sourceUrl,
+        thumbnailUrl: post.thumbnail_url,
+      },
+    ],
+    createdAt: item.created_at,
+  };
+}
+
+/**
  * Rows from the server, back into the app's shape.
  *
  * Also reports which ids were tombstoned, because a merge is a union and can't
@@ -66,9 +160,16 @@ export function fromIncoming(items: RemoteItem[]): { state: SyncedState; deleted
     }
     const body = item.body ?? {};
     switch (item.kind) {
-      case KIND.pin:
-        if (body.id) state.pins.push(body as SavedPin);
+      case KIND.pin: {
+        if (body.id) {
+          state.pins.push(body as SavedPin);
+        } else {
+          // No id: a row the server made from a shared link, not one of ours.
+          const fromShare = pinFromShareRow(item);
+          if (fromShare) state.pins.push(fromShare);
+        }
         break;
+      }
       case KIND.event:
         if (body.id) state.extraEvents.push(body as ItineraryEvent);
         break;

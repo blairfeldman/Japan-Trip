@@ -2,7 +2,8 @@
  * Confirmation-parsing tests. Run with `npm run test`. These are real-shaped
  * confirmations — the point is that pasting one lands it on the right day.
  */
-import { parseBookingText, tripDayFromText, timeFromText, confirmationFromText } from './bookingParse';
+import { parseBookingText, tripDayFromText, timeFromText, confirmationFromText, bookingToEvent, inboxToEvent } from './bookingParse';
+import { SEED_INBOX } from '../data/inbox';
 
 let pass = 0, fail = 0;
 function check(name: string, cond: boolean, extra = '') {
@@ -75,6 +76,22 @@ Payment received`);
   const vague = parseBookingText('Thanks for your order');
   check('no date/time -> Check date', vague?.confidence === 'Check date');
   check('empty input rejected', parseBookingText('') === null && parseBookingText('hi') === null);
+}
+
+console.log('\n-- prepaid or pay there --');
+{
+  // Both routes into a day now share one rule, so an Inbox card and the same
+  // confirmation pasted in must land on the same budget tag.
+  const [jal, zagin, rapit] = SEED_INBOX;
+  check('a flight with a reference is already paid for', inboxToEvent(jal, 12).tag === 'Prepaid');
+  check('a table you reserved is not', inboxToEvent(zagin, 11).tag === 'Pay there');
+  check('"paid" in the confirmation is taken at its word', inboxToEvent(rapit, 12).tag === 'Prepaid');
+  check('the inbox time is read out of the subtitle', inboxToEvent(jal, 12).start === 17.75, String(inboxToEvent(jal, 12).start));
+
+  const pasted = parseBookingText('Subject: Your JAL booking\nJAL 8 KIX to SFO, Oct 6, 17:45, conf. WQ8T2M');
+  check('the pasted version of it agrees', bookingToEvent(pasted!, 12, 'x').tag === 'Prepaid');
+  const table = parseBookingText('Table for 2 at Torisoba Zagin, Oct 5 19:00, pay at the counter');
+  check('and so does the pasted table', bookingToEvent(table!, 11, 'y').tag === 'Pay there');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

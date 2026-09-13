@@ -51,8 +51,3 @@ export async function fetchWeather(lat: number, lng: number): Promise<WeatherNow
     throw err;
   }
 }
-
-export async function loadCachedWeather(): Promise<WeatherNow | null> {
-  const cached = await AsyncStorage.getItem(CACHE_KEY);
-  return cached ? JSON.parse(cached) : null;
-}

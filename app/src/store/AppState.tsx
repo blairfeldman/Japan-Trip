@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
-import { Category, ItineraryEvent, SavedPin, InboxBooking } from '../types';
+import { Category, ItineraryEvent, Person, SavedPin, InboxBooking } from '../types';
 import { SEED_PINS } from '../data/pins';
 import { SEED_INBOX } from '../data/inbox';
 import { TRIP, dayIndexForDate } from '../data/trip';
@@ -33,6 +33,15 @@ interface State {
   decisions: Decisions;
   /** Patches over the day plan, keyed by event id. See services/schedule.ts. */
   eventEdits: EventEdits;
+  /**
+   * Which of the two of you is holding this phone.
+   *
+   * Both phones install the same APK, so nothing else can tell them apart —
+   * and with sync on, everything Yev saves would otherwise be filed and
+   * pushed under Blair's name. Set on the Inbox screen, kept out of the
+   * synced slice because it describes the device, not the trip.
+   */
+  me: Person;
   hydrated: boolean;
 }
 
@@ -58,6 +67,7 @@ type Action =
   | { type: 'EDIT_EVENT'; id: string; original: ItineraryEvent; patch: EventPatch }
   | { type: 'DELETE_EVENT'; id: string }
   | { type: 'RESTORE_EVENT'; id: string }
+  | { type: 'SET_ME'; me: Person }
   | { type: 'APPLY_MERGED'; merged: SyncedState };
 
 const initialState: State = {
@@ -77,6 +87,7 @@ const initialState: State = {
   nowOverride: null,
   decisions: {},
   eventEdits: {},
+  me: 'B',
   hydrated: false,
 };
 
@@ -96,6 +107,8 @@ function reducer(state: State, action: Action): State {
       };
     case 'SET_DAY':
       return { ...state, dayIdx: action.idx };
+    case 'SET_ME':
+      return { ...state, me: action.me };
     case 'TOGGLE_CAT_FILTER':
       return { ...state, catFilters: { ...state.catFilters, [action.cat]: !state.catFilters[action.cat] } };
     case 'CLEAR_CAT_FILTERS':
@@ -219,6 +232,7 @@ function persistable(state: State): PersistedState {
     eventEdits: state.eventEdits,
     catFilters: state.catFilters,
     converter: state.converter,
+    me: state.me,
   };
 }
 
@@ -248,6 +262,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     state.eventEdits,
     state.catFilters,
     state.converter,
+    state.me,
   ]);
 
   const value = useMemo(() => ({ state, dispatch }), [state]);
@@ -258,24 +273,4 @@ export function useAppState() {
   const ctx = useContext(StateCtx);
   if (!ctx) throw new Error('useAppState must be used within AppStateProvider');
   return ctx;
-}
-
-/** Parses a booking's first HH:MM into a decimal hour; falls back to a sane default. */
-export function inboxToEvent(b: InboxBooking, day: number): ItineraryEvent {
-  const m = b.sub.match(/(\d{1,2}):(\d{2})/);
-  const start = m ? parseInt(m[1], 10) + parseInt(m[2], 10) / 60 : 12;
-  const dur = b.kind === 'Flight' ? 1.5 : b.kind === 'Restaurant' ? 1.25 : b.kind === 'Train' ? 0.6 : 1;
-  const cat: Category = b.kind === 'Restaurant' ? 'food' : b.kind === 'Hotel' ? 'hotel' : b.kind === 'Activity' ? 'sightseeing' : 'transit';
-  const paid = /paid|conf\./i.test(b.sub) && !/pay at the counter/i.test(b.sub);
-  return {
-    id: `${b.id}-event`,
-    day,
-    start,
-    end: start + dur,
-    cat,
-    title: b.title,
-    sub: b.sub,
-    tag: paid ? 'Prepaid' : 'Pay there',
-    booking: { reserved: 'Forwarded booking' },
-  };
 }

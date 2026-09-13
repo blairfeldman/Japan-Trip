@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RootNav, RootStackParamList } from '../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
-import { api, syncConfigured } from '../services/api';
+import { api, syncConfigured, RemoteItem } from '../services/api';
 import { findPinBySourceUrl } from '../services/backup';
 import { describeSharedLink } from '../utils/shareLink';
 import { parseSharedVideo, ParsedShare } from '../services/shareParse';
@@ -15,9 +16,9 @@ import { SavedPin } from '../types';
 type Status = 'parsing' | 'no-backend' | 'duplicate' | 'server-pinned' | 'server-review' | 'server-slow';
 
 export default function ShareSheetScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<RootNav>();
   const insets = useSafeAreaInsets();
-  const route = useRoute<any>();
+  const route = useRoute<RouteProp<RootStackParamList, 'ShareSheet'>>();
   const { state, dispatch } = useAppState();
   const url: string = route.params?.url ?? '';
   const link = describeSharedLink(url);
@@ -35,7 +36,7 @@ export default function ShareSheetScreen() {
   const [status, setStatus] = useState<Status>('parsing');
   const [duplicateOf, setDuplicateOf] = useState<SavedPin | null>(null);
   const [parsed, setParsed] = useState<ParsedShare | null>(null);
-  const [remote, setRemote] = useState<any | null>(null);
+  const [remote, setRemote] = useState<RemoteItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +55,7 @@ export default function ShareSheetScreen() {
         // place, then a real geocode. It answers at once with a pending row and
         // fills it in behind the scenes, so poll briefly rather than holding
         // the share sheet open for the whole pipeline.
-        const created = await api.analyzeShareUrl(url, '', 'blair');
+        const created = await api.analyzeShareUrl(url, '', state.me);
         if (cancelled) return;
         if (created) {
           for (let i = 0; i < 12; i++) {
@@ -194,7 +195,7 @@ export default function ShareSheetScreen() {
           </View>
         )}
 
-                {status === 'duplicate' && duplicateOf && (
+        {status === 'duplicate' && duplicateOf && (
           <View style={{ paddingVertical: 2 }}>
             <View style={styles.dupeCallout}>
               <Text style={styles.dupeLabel}>Already saved</Text>
@@ -213,10 +214,10 @@ export default function ShareSheetScreen() {
               <PrimaryButton
                 label="Add this clip to the pin"
                 onPress={() => {
-    dispatch({
+                  dispatch({
                     type: 'ADD_CLIP_TO_PIN',
                     pinId: duplicateOf.id,
-                    clip: { handle: link.handle, caption: url, savedBy: 'B', savedAt: new Date().toISOString(), sourceUrl: url },
+                    clip: { handle: link.handle, caption: url, savedBy: state.me, savedAt: new Date().toISOString(), sourceUrl: url },
                   });
                   openPin(duplicateOf.id);
                 }}
@@ -225,8 +226,7 @@ export default function ShareSheetScreen() {
             </View>
           </View>
         )}
-
-              </View>
+      </View>
     </View>
   );
 }

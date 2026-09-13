@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RootNav, RootStackParamList } from '../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppState } from '../store/AppState';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
@@ -14,9 +15,9 @@ import { newId } from '../utils/id';
 import { TRIP } from '../data/trip';
 
 export default function AddPinScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<RootNav>();
   const insets = useSafeAreaInsets();
-  const route = useRoute<any>();
+  const route = useRoute<RouteProp<RootStackParamList, 'AddPin'>>();
   const { state, dispatch } = useAppState();
 
   // Set when this form was opened from a shared TikTok/Instagram link.
@@ -29,6 +30,7 @@ export default function AddPinScreen() {
   const [cat, setCat] = useState<Category>('food');
   const [note, setNote] = useState('');
   const [visible, setVisible] = useState(true);
+  const me = TRIP.travelers.find((t) => t.initial === state.me) ?? TRIP.travelers[0];
 
   // Previewed before saving so "Save" is never a surprise merge.
   const willMerge = useMemo(() => {
@@ -41,7 +43,7 @@ export default function AddPinScreen() {
       lat: matched.lat,
       lng: matched.lng,
       sub: '',
-      who: 'B',
+      who: state.me,
       clips: [],
       createdAt: new Date().toISOString(),
     });
@@ -63,7 +65,7 @@ export default function AddPinScreen() {
           {
             handle: route.params?.handle ?? shared.handle,
             caption: name.trim(),
-            savedBy: 'B',
+            savedBy: state.me,
             savedAt: new Date().toISOString(),
             sourceUrl: shared.url,
             thumbnailUrl: route.params?.thumbnailUrl,
@@ -78,7 +80,7 @@ export default function AddPinScreen() {
       lat: matched.lat,
       lng: matched.lng,
       sub: note.trim() || CATEGORY[cat].label,
-      who: visible ? 'both' : 'B',
+      who: visible ? 'both' : state.me,
       note: note.trim() || undefined,
       clips,
       createdAt: new Date().toISOString(),
@@ -186,13 +188,22 @@ export default function AddPinScreen() {
         </Text>
       )}
 
+      {/*
+        This sets who the pin is filed under, not who can see it: once the
+        backend is configured everything syncs to the phone you both read.
+        Labelled accordingly rather than promising a privacy setting there
+        isn't one of.
+      */}
       <View style={styles.visRow}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{TRIP.travelers[0].initial}</Text>
+          <Text style={styles.avatarText}>{me.initial}</Text>
         </View>
-        <Text style={styles.visLabel}>Visible to {TRIP.travelers[1]?.name ?? 'trip partner'}</Text>
+        <Text style={styles.visLabel}>Save as both of ours</Text>
         <Switch value={visible} onValueChange={setVisible} trackColor={{ true: COLORS.accent, false: COLORS.border }} />
       </View>
+      <Text style={styles.visHint}>
+        {visible ? 'Filed as a place for the two of you.' : `Filed as ${me.name}'s find.`}
+      </Text>
     </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -221,5 +232,6 @@ const styles = StyleSheet.create({
   visRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: COLORS.hairline, paddingTop: 16 },
   avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.link, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  visHint: { fontSize: 12, color: COLORS.labelFaint, marginTop: 6, fontFamily: FONT_SERIF_REGULAR },
   visLabel: { flex: 1, fontSize: 15, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
 });

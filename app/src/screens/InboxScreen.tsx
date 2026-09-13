@@ -1,19 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DaysNav, DaysStackParamList } from '../navigation/types';
 import * as Clipboard from 'expo-clipboard';
-import { useAppState, inboxToEvent, syncedFrom } from '../store/AppState';
+import { useAppState, syncedFrom } from '../store/AppState';
 import { exportAndShare, pickBackup } from '../services/backupFile';
 import { mergeSynced, isEmptySummary, MergeSummary } from '../services/backup';
 import { useSync } from '../hooks/useSync';
 import { TRIP, DAYS } from '../data/trip';
 import { COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
-import { DoubleRule, PrimaryButton, SecondaryButton, SectionLabel } from '../components/ui';
+import { DoubleRule, PrimaryButton, ScreenTitle, SecondaryButton, SectionLabel } from '../components/ui';
 import { Icon, IconName } from '../components/Icon';
+import { Person } from '../types';
 import { newId } from '../utils/id';
-import { parseBookingText, bookingToEvent, parseBookingWithModel, ParsedBooking } from '../services/bookingParse';
-import { useRoute } from '@react-navigation/native';
+import { parseBookingText, bookingToEvent, inboxToEvent, parseBookingWithModel, ParsedBooking } from '../services/bookingParse';
 import { syncConfigured } from '../services/api';
 
 /** Plain-English summary of what an import actually changed. */
@@ -25,15 +26,18 @@ function describeMerge(s: MergeSummary): string {
   if (s.newClips) parts.push(`${s.newClips} new clip${s.newClips === 1 ? '' : 's'}`);
   if (s.newEvents) parts.push(`${s.newEvents} plan item${s.newEvents === 1 ? '' : 's'}`);
   if (s.newDecisions) parts.push(`${s.newDecisions} budget decision${s.newDecisions === 1 ? '' : 's'}`);
+  // Without this, a file whose only news is edited day-plan entries counted as
+  // "not empty" and then described itself as "Merged: ."
+  if (s.newEdits) parts.push(`${s.newEdits} changed plan ${s.newEdits === 1 ? 'entry' : 'entries'}`);
   return `Merged: ${parts.join(', ')}.`;
 }
 
 export default function InboxScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<DaysNav>();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
   const [copied, setCopied] = useState(false);
-  const route = useRoute<any>();
+  const route = useRoute<RouteProp<DaysStackParamList, 'Inbox'>>();
   // Text shared in from a mail app lands here pre-filled.
   const [showForm, setShowForm] = useState(!!route.params?.sharedText);
   const [manualText, setManualText] = useState<string>(route.params?.sharedText ?? '');
@@ -140,7 +144,7 @@ export default function InboxScreen() {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
           <Icon name="ArrowLeft" size={20} color={COLORS.ink} />
         </Pressable>
-        <Text style={styles.h2}>Inbox</Text>
+        <ScreenTitle>Inbox</ScreenTitle>
       </View>
       <DoubleRule style={{ marginTop: 14, marginBottom: 18 }} />
 
@@ -281,6 +285,25 @@ export default function InboxScreen() {
 
       <DoubleRule style={{ marginTop: 26, marginBottom: 18 }} />
 
+      <SectionLabel style={{ marginBottom: 8 }}>This phone</SectionLabel>
+      <Text style={styles.backupBlurb}>
+        Both of you install the same app, so it can't tell on its own. This is what new pins are filed under.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 22 }}>
+        {TRIP.travelers.map((t) => (
+          <Pressable
+            key={t.initial}
+            onPress={() => dispatch({ type: 'SET_ME', me: t.initial as Person })}
+            style={[styles.meChip, state.me === t.initial && { borderColor: COLORS.ink, backgroundColor: COLORS.hover }]}
+          >
+            <View style={[styles.meDot, { backgroundColor: t.color }]}>
+              <Text style={styles.meDotText}>{t.initial}</Text>
+            </View>
+            <Text style={[styles.meName, state.me === t.initial && { fontWeight: '600' }]}>{t.name}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       {sync.configured && (
         <>
           <SectionLabel style={{ marginBottom: 8 }}>Sync</SectionLabel>
@@ -331,7 +354,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backBtn: { width: 38, height: 38, marginLeft: -9, alignItems: 'center', justifyContent: 'center' },
-  h2: { fontSize: 31, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
+  meChip: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.border, borderRadius: 2, paddingHorizontal: 12, paddingVertical: 9, minHeight: 40 },
+  meDot: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  meDotText: { color: '#fff', fontSize: 11, fontWeight: '600', fontFamily: FONT_SERIF },
+  meName: { fontSize: 14, color: COLORS.ink, fontFamily: FONT_SERIF_REGULAR },
   setupNote: { fontSize: 12.5, color: COLORS.label, lineHeight: 18, marginTop: -14, marginBottom: 24, fontFamily: FONT_SERIF_REGULAR },
   emailCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.accentTint, padding: 14, marginBottom: 24 },
   emailLabel: { fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', color: COLORS.label, fontFamily: FONT_SERIF_REGULAR },

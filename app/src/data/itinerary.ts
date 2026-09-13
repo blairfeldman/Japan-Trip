@@ -129,7 +129,3 @@ export const ITINERARY: ItineraryEvent[] = [
   { id: 'd12-checkin', day: 12, start: 14.17, end: 16.75, cat: 'transit', title: 'International check-in & security', sub: '', tag: '' },
   { id: 'd12-flight', day: 12, start: 17.75, end: 17.75, cat: 'transit', title: 'DEPARTURE: 5:45pm flight from KIX', sub: '', tag: '' },
 ];
-
-export function eventsForDay(day: number): ItineraryEvent[] {
-  return ITINERARY.filter((e) => e.day === day).sort((a, b) => a.start - b.start);
-}

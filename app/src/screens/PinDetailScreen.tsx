@@ -1,21 +1,23 @@
 import React, { useMemo, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { CommonNav, CommonStackParamList } from '../navigation/types';
 import { useAppState } from '../store/AppState';
+import { Person } from '../types';
 import { DAYS } from '../data/trip';
 import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { PrimaryButton, SecondaryButton } from '../components/ui';
 import { PlaceholderBanner } from '../components/PlaceholderBanner';
-import { Icon } from '../components/Icon';
+import { Icon, IconName } from '../components/Icon';
 
 /** "once by Blair from @tokyoeats, once by Yev from @ramenhunter" */
-function describeClips(clips: { handle: string; savedBy: 'B' | 'Y' }[]): string {
+function describeClips(clips: { handle: string; savedBy: Person }[]): string {
   return clips.map((c) => `once by ${c.savedBy === 'B' ? 'Blair' : 'Yev'} from ${c.handle}`).join(', ');
 }
 
 export default function PinDetailScreen() {
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
+  const navigation = useNavigation<CommonNav>();
+  const route = useRoute<RouteProp<CommonStackParamList, 'PinDetail'>>();
   const { state, dispatch } = useAppState();
   const [added, setAdded] = useState(false);
   const pin = useMemo(() => state.pins.find((p) => p.id === route.params?.pinId), [state.pins, route.params?.pinId]);
@@ -28,7 +30,7 @@ export default function PinDetailScreen() {
     );
   }
 
-  const facts: { icon: any; v: string }[] = [
+  const facts: { icon: IconName; v: string }[] = [
     { icon: 'MapPin', v: pin.address },
     ...(pin.hours ? [{ icon: 'Clock' as const, v: pin.hours }] : []),
     ...(pin.note ? [{ icon: 'CalendarCheck' as const, v: pin.note }] : []),

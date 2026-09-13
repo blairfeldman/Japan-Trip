@@ -10,7 +10,7 @@ import { SyncedState, mergeSynced } from './backup';
 import { RemoteItem } from './api';
 import {
   KIND, toOutgoing, fromIncoming, applyDeletions, fingerprint,
-  changedSincePush, markPushed,
+  changedSincePush, markPushed, pinFromShareRow, pinCategory,
 } from './sync';
 
 /** Compare by content, not by whichever order the keys happen to be in. */
@@ -137,6 +137,55 @@ console.log('\n-- a full pull, merged into what the phone already has --');
   ]);
   check('an unknown kind is ignored, not crashed on',
     state.pins.length === 0 && state.extraEvents.length === 0);
+}
+
+console.log('\n-- a link shared to the app comes back as a pin --');
+{
+  /** What the server's extraction pipeline actually writes (backend/extract.py). */
+  const shareRow = (o: Partial<RemoteItem> = {}, body: Record<string, unknown> = {}): RemoteItem => ({
+    id: 'srv-1', seq: 9, kind: 'place', author: 'B', status: 'pinned',
+    source_url: 'https://www.tiktok.com/@x/video/1', created_at: at, updated_at: at, deleted: false,
+    body: {
+      source_url: 'https://www.tiktok.com/@x/video/1',
+      canonical_url: 'https://www.tiktok.com/@tokyoeats/video/1',
+      post: { caption: 'best tsukemen in Tokyo', author: 'tokyoeats', thumbnail_url: 'https://t/1.jpg' },
+      extraction: { place_name: 'Fuunji', city: 'Tokyo', category: 'restaurant', confidence: 'high' },
+      recommendation: 'Get the tsukemen.',
+      place: { name: 'Fuunji', address: '2-14-3 Yoyogi, Shibuya City, Tokyo', lat: 35.687, lng: 139.699 },
+      ...body,
+    },
+    ...o,
+  });
+
+  const p = pinFromShareRow(shareRow());
+  check('a processed share row becomes a pin', !!p);
+  check('with the geocoded coordinates', p?.lat === 35.687 && p?.lng === 139.699);
+  check('and the address', p?.address === '2-14-3 Yoyogi, Shibuya City, Tokyo');
+  check('the recommendation becomes the pin subtitle', p?.sub === 'Get the tsukemen.');
+  check('the clip keeps the link, so re-sharing merges', p?.clips[0].sourceUrl === 'https://www.tiktok.com/@tokyoeats/video/1');
+  check('the id is derived, so both phones agree', p?.id === 'share:srv-1');
+
+  // The whole point: it has to survive the same path a real sync takes.
+  const { state } = fromIncoming([shareRow()]);
+  check('and it arrives through fromIncoming', state.pins.length === 1 && state.pins[0].id === 'share:srv-1');
+
+  const pending = fromIncoming([shareRow({ status: 'pending' }, { place: undefined })]);
+  check('a row still being read is not pinned yet', pending.state.pins.length === 0);
+  const noMatch = fromIncoming([shareRow({ status: 'needs_review' }, { place: undefined, review_reason: "No map match for 'x'." })]);
+  check('nor is one the map could not place', noMatch.state.pins.length === 0);
+
+  const flagged = pinFromShareRow(shareRow({ status: 'needs_review' }, { review_reason: 'Low confidence — check this pin.' }));
+  check('a flagged pin still lands, carrying the warning', flagged?.note === 'Low confidence — check this pin.');
+
+  check('caption beats the coarse category', p?.cat === 'ramen');
+  check('sushi too', pinCategory('restaurant', 'Sushi Saito omakase') === 'sushi');
+  check('a shop is a shop', pinCategory('shop', 'Ragtag Harajuku') === 'shopping');
+  check('an unknown category falls back', pinCategory(undefined, 'somewhere') === 'sightseeing');
+
+  // A converted pin is a pin like any other: it must push back, so the other
+  // phone gets it without having to reach the same server row.
+  const out = toOutgoing({ ...full(), pins: [p!] }, 'B');
+  check('it pushes back as an ordinary pin', out.some((o) => o.id === 'share:srv-1' && o.kind === KIND.pin));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

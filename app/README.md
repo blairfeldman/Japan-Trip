@@ -26,7 +26,7 @@ provision on your behalf. Here's the honest breakdown:
 | Google Maps tiles on the Map tab | ⚠️ Needs **your** Google Maps API key (see below). Expo Go uses its own; a standalone build without one shows an explanation instead of the map |
 | Saved pins, day plans and Book it / Skip decisions surviving a restart | ✅ Live — persisted to `AsyncStorage`, see `src/services/persist.ts` |
 | Backing those up, and merging two phones' saves | ✅ Live — export/import a JSON file from the Inbox screen, no server needed. See below |
-| Sync between both phones | ✅ Live once `backend/` is deployed and `EXPO_PUBLIC_API_BASE_URL` + `EXPO_PUBLIC_API_TOKEN` are set. Without them the app is local-only, exactly as before |
+| Sync between both phones | ✅ Live once `backend/` is deployed and `EXPO_PUBLIC_API_BASE_URL` + `EXPO_PUBLIC_API_TOKEN` are set. Without them the app is local-only, exactly as before. Set **This phone** on the Inbox screen on each handset first — see below |
 | "Share to app" from TikTok/Instagram | ✅ Live in a real build (not Expo Go). Shared links attach to the pin, and re-sharing a clip or saving a place that's already pinned merges instead of duplicating. The caption, author and cover frame are read from the services' own public oEmbed endpoints — no key, no account, no backend — and offered as a name to correct. With `backend/` deployed the caption also goes to a model and a real geocoder, so the pin lands on the actual address rather than a name to look up later |
 | Getting a booking into the app | ✅ Live — paste a confirmation into the Inbox, or share it straight from your mail app. Date, time and confirmation number are read on-device, and the date is matched to a trip day. See below |
 | Forwarding real booking emails to `japan@trip.mail` | ❌ Not built. The address is a placeholder from the design, and receiving mail needs your own domain, an inbound-email provider and an endpoint in `backend/` to receive it. The paste/share route above covers the same ground without any of that |
@@ -202,6 +202,22 @@ Studio, the Android SDK and a JDK installed on Windows first.
 3. **Rename the bundle identifiers** in `app.json`
    (`com.blairfeldman.japantrip`) if you're publishing this rather than
    just running it on your own device.
+
+## Which phone is which
+
+Both of you install the same APK, so the app can't tell the handsets apart on
+its own. The **This phone** setting at the bottom of the Inbox screen says
+which of you is holding it, and everything saved from then on is filed under
+that person: new pins, the clips attached to them, and the author recorded
+against every row pushed to the backend. It's stored on the device and never
+synced, so the two phones can disagree — which is the point.
+
+Set it once per phone, before you start saving things. Left alone it assumes
+Blair, which is only right on one of the two.
+
+One thing it deliberately does *not* do is control visibility: with the
+backend configured everything syncs to the database you both read. The switch
+on Add Pin files a place as yours or as both of yours; it doesn't hide it.
 
 ## Editing the day plan
 

@@ -4,6 +4,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONT_SERIF_REGULAR } from '../theme';
 import { Icon, IconName } from '../components/Icon';
+import {
+  DaysStackParamList, MapStackParamList, MoneyStackParamList, NowStackParamList,
+  PhrasesStackParamList, RootStackParamList, TabParamList,
+} from './types';
 
 import NowScreen from '../screens/NowScreen';
 import MapScreen from '../screens/MapScreen';
@@ -24,7 +28,7 @@ const commonStackOptions = {
   contentStyle: { backgroundColor: COLORS.bg },
 };
 
-const NowStack = createNativeStackNavigator();
+const NowStack = createNativeStackNavigator<NowStackParamList>();
 function NowStackNavigator() {
   return (
     <NowStack.Navigator screenOptions={commonStackOptions}>
@@ -36,7 +40,7 @@ function NowStackNavigator() {
   );
 }
 
-const MapStack = createNativeStackNavigator();
+const MapStack = createNativeStackNavigator<MapStackParamList>();
 function MapStackNavigator() {
   return (
     <MapStack.Navigator screenOptions={commonStackOptions}>
@@ -48,7 +52,7 @@ function MapStackNavigator() {
   );
 }
 
-const DaysStack = createNativeStackNavigator();
+const DaysStack = createNativeStackNavigator<DaysStackParamList>();
 function DaysStackNavigator() {
   return (
     <DaysStack.Navigator screenOptions={commonStackOptions}>
@@ -60,7 +64,7 @@ function DaysStackNavigator() {
   );
 }
 
-const MoneyStack = createNativeStackNavigator();
+const MoneyStack = createNativeStackNavigator<MoneyStackParamList>();
 function MoneyStackNavigator() {
   return (
     <MoneyStack.Navigator screenOptions={commonStackOptions}>
@@ -70,7 +74,7 @@ function MoneyStackNavigator() {
   );
 }
 
-const PhrasesStack = createNativeStackNavigator();
+const PhrasesStack = createNativeStackNavigator<PhrasesStackParamList>();
 function PhrasesStackNavigator() {
   return (
     <PhrasesStack.Navigator screenOptions={commonStackOptions}>
@@ -80,7 +84,7 @@ function PhrasesStackNavigator() {
   );
 }
 
-const TAB_ICON: Record<string, IconName> = {
+const TAB_ICON: Record<keyof TabParamList, IconName> = {
   NowTab: 'Compass',
   MapTab: 'MapTrifold',
   DaysTab: 'CalendarBlank',
@@ -88,7 +92,7 @@ const TAB_ICON: Record<string, IconName> = {
   PhrasesTab: 'Translate',
 };
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabParamList>();
 function Tabs() {
   // Android is edge-to-edge from Expo SDK 54 on, so the gesture bar sits over
   // the app unless the tab bar reserves room for it.
@@ -119,7 +123,7 @@ function Tabs() {
   );
 }
 
-const RootStack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 export default function RootNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>

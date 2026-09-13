@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DaysNav } from '../navigation/types';
 import { useAppState } from '../store/AppState';
 import { useClock } from '../hooks/useClock';
 import { DAYS } from '../data/trip';
@@ -20,7 +21,7 @@ const CHIP_W = 46;
 const CHIP_GAP = 4;
 
 export default function DaysScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<DaysNav>();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useAppState();
   const now = useClock();
