@@ -36,7 +36,11 @@ MAX_BODY_BYTES = 64 * 1024  # keeps one bad client from filling a 1 GB volume
 
 if not APP_TOKEN:
     if IS_FLY:
-        raise RuntimeError("APP_TOKEN is not set. Run: fly secrets set APP_TOKEN=$(openssl rand -hex 32)")
+        raise RuntimeError(
+            "APP_TOKEN is not set, so the app would come up unprotected. Set it with:\n"
+            "  PowerShell: fly secrets set APP_TOKEN=(python -c \"import secrets;print(secrets.token_hex(32))\")\n"
+            "  bash:       fly secrets set APP_TOKEN=$(openssl rand -hex 32)"
+        )
     APP_TOKEN = "dev-token"
     print("WARNING: APP_TOKEN unset, using 'dev-token'. Fine locally, never in deploy.")
 
