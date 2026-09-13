@@ -127,7 +127,7 @@ export function pinFromShareRow(item: RemoteItem): SavedPin | null {
     who: 'both',
     // The pipeline's own doubts, kept where they'll be read: "check this pin"
     // is only useful next to the pin.
-    note: body.review_reason,
+    needsReview: body.review_reason,
     clips: [
       {
         handle: post.author ?? '',

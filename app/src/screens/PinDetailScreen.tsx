@@ -56,6 +56,13 @@ export default function PinDetailScreen() {
         <Text style={styles.title}>{pin.name}</Text>
         <Text style={styles.subhead}>{pin.sub}</Text>
 
+        {!!pin.needsReview && (
+          <View style={styles.reviewCallout}>
+            <Icon name="MapPinLine" size={17} color={COLORS.magentaDeep} />
+            <Text style={styles.reviewText}>{pin.needsReview}</Text>
+          </View>
+        )}
+
         {pin.clips.length > 1 && (
           <View style={styles.dupeCallout}>
             <Text style={styles.dupeLabel}>Merged duplicate</Text>
@@ -141,6 +148,12 @@ const styles = StyleSheet.create({
   metaLabel: { fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: COLORS.label, fontFamily: FONT_SERIF_REGULAR },
   title: { fontSize: 29, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink, marginBottom: 4, letterSpacing: -0.3 },
   subhead: { fontSize: 15, color: COLORS.inkMuted, marginBottom: 18, fontFamily: FONT_SERIF_REGULAR },
+  reviewCallout: {
+    flexDirection: 'row', gap: 9, alignItems: 'flex-start',
+    backgroundColor: COLORS.magentaTint, borderLeftWidth: 3, borderLeftColor: COLORS.magenta,
+    padding: 12, marginTop: 14,
+  },
+  reviewText: { flex: 1, fontSize: 13.5, lineHeight: 19, color: COLORS.inkSoft, fontFamily: FONT_SERIF_REGULAR },
   dupeCallout: { backgroundColor: COLORS.magentaTint, borderLeftWidth: 3, borderLeftColor: COLORS.magenta, padding: 13, marginBottom: 20 },
   dupeLabel: { fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.magentaDeep, marginBottom: 5, fontFamily: FONT_SERIF_REGULAR },
   dupeText: { fontSize: 14.5, lineHeight: 20, color: COLORS.inkSoft, fontFamily: FONT_SERIF_REGULAR },

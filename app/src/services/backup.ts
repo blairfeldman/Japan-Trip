@@ -104,6 +104,7 @@ function mergePinPair(base: SavedPin, incoming: SavedPin): { pin: SavedPin; newC
       who: mergeWho(base.who, incoming.who),
       // Keep whatever detail exists rather than letting a sparser copy win.
       note: base.note ?? incoming.note,
+      needsReview: base.needsReview ?? incoming.needsReview,
       hours: base.hours ?? incoming.hours,
       price: base.price ?? incoming.price,
     },

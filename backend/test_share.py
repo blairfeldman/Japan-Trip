@@ -194,6 +194,35 @@ with TestClient(main.app) as c:
         sum(1 for i in calls_before if (i["source_url"] or "").endswith("/video/7664911757474893086")) == 1,
     )
 
+    print("\n-- one name, two places --")
+    # The live failure this exists for: a nickname that fits two venues came
+    # back looking like an exact match, and pinned the wrong bridge.
+    stub(extraction={
+        "place_query": "suspension bridge of dreams Shizuoka", "place_name": "The suspension bridge of dreams",
+        "city": "Shizuoka", "country": "Japan", "category": "attraction",
+        "recommendation": "Walk across it.", "confidence": "medium",
+    })
+    extract.geocode = lambda q: {
+        "google_place_id": "ChIJa", "name": "Ikawa Yume Suspension Bridge",
+        "address": "1541-1 Ikawa, Aoi Ward, Shizuoka, Japan",
+        "lat": 35.2162961, "lng": 138.2334251,
+        "also_matched": {"name": "Sumatakyo Yume no tsuribashi", "km": 12.7},
+    }
+    _, item = share_and_run(c, "https://www.tiktok.com/@ume/video/bridge")
+    check("still pinned, not thrown away", item["body"]["place"]["lat"] == 35.2162961)
+    check("but flagged", item["status"] == "needs_review", item["status"])
+    check("naming the other candidate", "Sumatakyo" in item["body"]["review_reason"], item["body"].get("review_reason"))
+    check("and how far off it is", "12.7 km" in item["body"]["review_reason"])
+    check("the runner-up is not part of the pin", "also_matched" not in item["body"]["place"])
+
+    print("\n-- the distance test itself --")
+    a = {"lat": 35.2162961, "lng": 138.2334251}   # Ikawa Yume
+    b = {"lat": 35.1810587, "lng": 138.1122714}   # Sumatakyo Yume no tsuribashi
+    km = extract._km_apart(a, b)
+    check("the two bridges are a long way apart", 10 < km < 15, f"{km:.1f} km")
+    near = extract._km_apart(a, {"lat": 35.2166, "lng": 138.2338})
+    check("a few streets over is not ambiguity", near < extract.AMBIGUOUS_KM, f"{near:.3f} km")
+
     print("\n-- an unresolvable link still shares --")
     SHORTLINKS.clear()
     stub()

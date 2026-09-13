@@ -182,7 +182,8 @@ console.log('\n-- a link shared to the app comes back as a pin --');
   check('and leaves other pins alone', applyDeletions(pinned, ['someone-else']).pins.length === 1);
 
   const flagged = pinFromShareRow(shareRow({ status: 'needs_review' }, { review_reason: 'Low confidence — check this pin.' }));
-  check('a flagged pin still lands, carrying the warning', flagged?.note === 'Low confidence — check this pin.');
+  check('a flagged pin still lands, carrying the warning', flagged?.needsReview === 'Low confidence — check this pin.');
+  check('and the warning is not filed as a note', flagged?.note === undefined);
 
   check('caption beats the coarse category', p?.cat === 'ramen');
   check('sushi too', pinCategory('restaurant', 'Sushi Saito omakase') === 'sushi');

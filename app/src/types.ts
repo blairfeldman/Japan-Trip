@@ -49,6 +49,13 @@ export interface SavedPin {
   sub: string;
   who: Person | 'both';
   note?: string;
+  /**
+   * Why this pin might be wrong, from the extraction pipeline — a low-
+   * confidence read, an address in the wrong city, or a name that matched two
+   * places. Kept apart from `note` so it can be shown as a warning rather than
+   * as another line of detail.
+   */
+  needsReview?: string;
   hours?: string;
   price?: string;
   clips: {
