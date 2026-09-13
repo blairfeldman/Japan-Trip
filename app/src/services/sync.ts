@@ -200,6 +200,11 @@ export function fromIncoming(items: RemoteItem[]): { state: SyncedState; deleted
 export function applyDeletions(state: SyncedState, deletedIds: string[]): SyncedState {
   if (deletedIds.length === 0) return state;
   const gone = new Set(deletedIds);
+  // A pin built from a share row carries the row's id behind a prefix, so a
+  // tombstone for the row has to take the pin with it — deleting the row on
+  // the server is how a bad pin gets removed, and it would otherwise sit on
+  // the map with nothing left behind it.
+  const sourceRow = (id: string) => (id.startsWith('share:') ? id.slice('share:'.length) : id);
   const edits: EventEdits = {};
   for (const [id, edit] of Object.entries(state.eventEdits)) {
     if (!gone.has(`edit:${id}`)) edits[id] = edit;
@@ -209,7 +214,7 @@ export function applyDeletions(state: SyncedState, deletedIds: string[]): Synced
     if (!gone.has(`decision:${id}`)) decisions[id] = d;
   }
   return {
-    pins: state.pins.filter((p) => !gone.has(p.id)),
+    pins: state.pins.filter((p) => !gone.has(p.id) && !gone.has(sourceRow(p.id))),
     extraEvents: state.extraEvents.filter((e) => !gone.has(e.id)),
     inbox: state.inbox.filter((b) => !gone.has(`booking:${b.id}`)),
     eventEdits: edits,

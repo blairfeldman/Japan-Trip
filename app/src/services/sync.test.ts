@@ -174,6 +174,13 @@ console.log('\n-- a link shared to the app comes back as a pin --');
   const noMatch = fromIncoming([shareRow({ status: 'needs_review' }, { place: undefined, review_reason: "No map match for 'x'." })]);
   check('nor is one the map could not place', noMatch.state.pins.length === 0);
 
+  // Deleting the server row is the only way to get rid of a bad shared pin,
+  // so the tombstone has to reach through the prefix.
+  const pinned = fromIncoming([shareRow()]).state;
+  const afterDelete = applyDeletions(pinned, ['srv-1']);
+  check('deleting the row deletes the pin it made', afterDelete.pins.length === 0);
+  check('and leaves other pins alone', applyDeletions(pinned, ['someone-else']).pins.length === 1);
+
   const flagged = pinFromShareRow(shareRow({ status: 'needs_review' }, { review_reason: 'Low confidence — check this pin.' }));
   check('a flagged pin still lands, carrying the warning', flagged?.note === 'Low confidence — check this pin.');
 
