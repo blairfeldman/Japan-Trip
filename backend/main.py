@@ -263,19 +263,35 @@ def share(
     Extraction takes several seconds (redirect + oEmbed + Claude + geocode), far
     too long to hold a share intent open, so this returns a pending row at once
     and the worker fills it in. The phone learns the result through the ordinary
-    seq sync — no second delivery mechanism. Sharing the same link twice returns
-    the existing row.
+    seq sync — no second delivery mechanism. Sharing the same video twice
+    returns the existing row.
+
+    The redirect is followed here rather than left to the worker, because it is
+    the only thing that makes that last sentence true: TikTok's share sheet
+    mints a fresh https://www.tiktok.com/t/XXXX link every time you share, so
+    two shares of one video arrive as two URLs with nothing in common. Deduping
+    on what the user sent meant a second share paid for another model call and
+    another geocode, and Places is free to answer differently the second time —
+    which it did, putting one video's two rows on suspension bridges 15 km
+    apart. It costs a redirect in the request path; the alternative is
+    duplicate pins.
     """
-    url = normalize_url(payload.url)
-    if not url.startswith(("http://", "https://")):
+    shared = normalize_url(payload.url)
+    if not shared.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail="url must be http(s)")
+
+    # Falls back to the shared link when TikTok won't answer: a duplicate row is
+    # better than refusing the share.
+    url = normalize_url(extract.resolve_url(shared))
 
     ts = now()
     item_id = str(uuid.uuid4())
     body = {"source_url": url, "shared_text": payload.shared_text}
 
     with write_txn(conn):
-        existing = conn.execute("SELECT * FROM items WHERE source_url = ?", (url,)).fetchone()
+        existing = conn.execute(
+            "SELECT * FROM items WHERE source_url IN (?, ?)", (url, shared)
+        ).fetchone()
         if existing is not None:
             response.status_code = 200
             return row_to_item(existing)

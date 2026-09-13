@@ -287,6 +287,10 @@ are small and isolated for exactly this reason.
 - Tombstones accumulate forever. Purge ones older than both phones' last sync if
   the table ever gets big.
 - `PATCH` replaces `body` wholesale — a partial body drops the keys it omits.
+- Dedupe is per video, not per link: `/share` follows the redirect before
+  inserting, so a re-share of the same TikTok returns the existing row. If the
+  redirect can't be followed the shared link is stored as-is, which can leave a
+  duplicate row for that one share.
 - Last-write-wins conflicts. Two people editing one row within seconds isn't a
   real scenario here.
 - The token ships inside the APK, so whoever holds the APK holds it. Acceptable

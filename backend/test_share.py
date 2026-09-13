@@ -34,10 +34,14 @@ def check(name, cond, extra=""):
         print("  FAIL", name, extra)
 
 
+# TikTok mints a new /t/XXXX link on every share, all pointing at one video.
+SHORTLINKS: dict[str, str] = {}
+
+
 def stub(*, caption="Best tsukemen 🍜 Tsuta in Sugamo #tokyoeats", extraction=None, place="ok", fail_times=0):
     """Swap the four network functions for canned answers."""
     state = {"calls": 0}
-    extract.resolve_url = lambda u: u.split("?")[0]
+    extract.resolve_url = lambda u: SHORTLINKS.get(u.split("?")[0], u.split("?")[0])
     extract.fetch_oembed = lambda u: (
         None if caption is None else {"title": caption, "author_name": "tokyo eats", "thumbnail_url": "https://t/x.jpg"}
     )
@@ -169,6 +173,35 @@ with TestClient(main.app) as c:
     c.delete(f"/items/{r1.json()['id']}", headers=AUTH)
     r3 = c.post("/share", json={"url": "https://www.tiktok.com/@x/video/dupe"}, headers=AUTH)
     check("deleting frees the link for a re-share", r3.status_code == 202, str(r3.status_code))
+
+    print("\n-- the same video, shared twice --")
+    # This is the ordinary case, not an edge one: TikTok's share sheet hands out
+    # a fresh /t/XXXX link every time, so "share it again" never looks like the
+    # same URL until the redirect is followed.
+    SHORTLINKS.clear()
+    SHORTLINKS["https://www.tiktok.com/t/AAA"] = "https://www.tiktok.com/@ume/video/7664911757474893086"
+    SHORTLINKS["https://www.tiktok.com/t/BBB"] = "https://www.tiktok.com/@ume/video/7664911757474893086"
+    stub()
+    first, _ = share_and_run(c, "https://www.tiktok.com/t/AAA")
+    second = c.post("/share", json={"url": "https://www.tiktok.com/t/BBB"}, headers=AUTH)
+    check("the second share is not a new row", second.status_code == 200, str(second.status_code))
+    check("it is the same row", second.json()["id"] == first.json()["id"])
+    check("stored under the resolved video", first.json()["source_url"].endswith("/video/7664911757474893086"))
+
+    calls_before = c.get("/items?since_seq=0", headers=AUTH).json()["items"]
+    check(
+        "and only one row exists for that video",
+        sum(1 for i in calls_before if (i["source_url"] or "").endswith("/video/7664911757474893086")) == 1,
+    )
+
+    print("\n-- an unresolvable link still shares --")
+    SHORTLINKS.clear()
+    stub()
+    extract.resolve_url = lambda u: u  # TikTok not answering
+    r, item = share_and_run(c, "https://www.tiktok.com/t/CCC")
+    check("falls back to the link the user sent", r.status_code == 202, str(r.status_code))
+    check("and still gets processed", item["status"] == "pinned", item["status"])
+    SHORTLINKS.clear()
 
 print(f"\n{PASS} passed, {FAIL} failed")
 shutil.rmtree(TMP, ignore_errors=True)
