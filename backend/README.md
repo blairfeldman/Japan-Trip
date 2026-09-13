@@ -236,14 +236,26 @@ second boot as a no-op.
 written from their documentation and exercised only through stubs. Smoke-test
 each once before trusting the pipeline:
 
-```bash
-python -c "
-import os; os.environ.setdefault('ANTHROPIC_API_KEY','sk-ant-...')
-import extract; print(extract.extract_place('Best tsukemen 🍜 Tsuta in Sugamo #tokyoeats'))"
+Easiest against the deployed app, where the keys are already in the
+environment — and it sidesteps nested-quote escaping, which is miserable in
+PowerShell:
 
-python -c "
-import os; os.environ.setdefault('GOOGLE_MAPS_API_KEY','...')
-import extract; print(extract.geocode('Tsuta, Sugamo, Tokyo'))"
+```
+fly ssh console
+python
+```
+
+```python
+import extract
+extract.extract_place('Best tsukemen at Tsuta in Sugamo #tokyoeats')
+extract.geocode('Tsuta, Sugamo, Tokyo')
+```
+
+Locally instead, with the keys exported:
+
+```bash
+python -c "import extract; print(extract.extract_place('Best tsukemen at Tsuta in Sugamo'))"
+python -c "import extract; print(extract.geocode('Tsuta, Sugamo, Tokyo'))"
 ```
 
 If the Places response shape has moved, `geocode()` is the only function to
