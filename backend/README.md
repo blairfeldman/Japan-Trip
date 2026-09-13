@@ -291,9 +291,3 @@ are small and isolated for exactly this reason.
   real scenario here.
 - The token ships inside the APK, so whoever holds the APK holds it. Acceptable
   for an unpublished two-person app; rotate with `fly secrets set` + a rebuild.
-
-## Note on `server/`
-
-`../server/` is the earlier Node/Express prototype. It was never deployed and
-this replaces it. It's left in the tree rather than deleted so you can decide;
-nothing points at it any more.

@@ -11,8 +11,6 @@ A trip-planning Android app for Blair & Yev's Sept 25 – Oct 6 Japan trip
   phones read and write, plus the share-to-pin pipeline (Claude reads the
   caption, Google Places locates it). The app is local-first and runs fine
   without it. See **`backend/README.md`**.
-- **`server/`** — the earlier Node prototype of the same idea. Never deployed,
-  superseded by `backend/`, kept only so it can be reviewed before deleting.
 
 ## Where this came from
 
@@ -42,7 +40,7 @@ That original material is kept for reference:
   currency, TTS, geocoding) — plus real code paths for the pieces that do
   need your own accounts (Google Maps, a deployed backend, a real inbound
   email address), rather than mocking those and calling it done. Each such
-  piece says so explicitly in the UI and in `app/README.md` / `server/README.md`.
+  piece says so explicitly in the UI and in `app/README.md` / `backend/README.md`.
 - **All 12 days, not just Day 6:** the prototype only ever populated Day 6's
   hour grid. The real app's `app/src/data/itinerary.ts` has hand-built time
   blocks for all 12 days, derived from the spreadsheet's day-by-day prose

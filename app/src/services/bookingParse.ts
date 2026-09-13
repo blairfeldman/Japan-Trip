@@ -6,10 +6,10 @@ import { Category, InboxBooking, ItineraryEvent } from '../types';
  * for forwarding it to `japan@trip.mail`, which needs a deployed backend and a
  * real inbound-email domain.
  *
- * Ported from `server/src/services/bookingParse.ts`'s regex fallback (the
- * server's better path asks a model, which needs an API key). Everything here
- * runs on the phone with no network, so it still works on a train with no
- * signal.
+ * Everything here runs on the phone with no network, so it still works on a
+ * train with no signal. `parseBookingWithModel` below is the better path — it
+ * asks the backend's model — but it needs signal and a deployed backend, and
+ * falls back to this.
  *
  * The date trick: rather than parse dates properly — hopeless across "Oct 6",
  * "10/6", "6 Oct" and "10月6日" — it collects every plausible month/day pair in

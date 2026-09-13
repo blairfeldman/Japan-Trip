@@ -27,9 +27,9 @@ provision on your behalf. Here's the honest breakdown:
 | Saved pins, day plans and Book it / Skip decisions surviving a restart | ✅ Live — persisted to `AsyncStorage`, see `src/services/persist.ts` |
 | Backing those up, and merging two phones' saves | ✅ Live — export/import a JSON file from the Inbox screen, no server needed. See below |
 | Sync between both phones | ✅ Live once `backend/` is deployed and `EXPO_PUBLIC_API_BASE_URL` + `EXPO_PUBLIC_API_TOKEN` are set. Without them the app is local-only, exactly as before |
-| "Share to app" from TikTok/Instagram | ✅ Live in a real build (not Expo Go). Shared links attach to the pin, and re-sharing a clip or saving a place that's already pinned merges instead of duplicating. The caption, author and cover frame are read from the services' own public oEmbed endpoints — no key, no account, no backend — and offered as a name to correct. Reading the place out of *on-screen text and pinned comments* is what still needs `server/` |
+| "Share to app" from TikTok/Instagram | ✅ Live in a real build (not Expo Go). Shared links attach to the pin, and re-sharing a clip or saving a place that's already pinned merges instead of duplicating. The caption, author and cover frame are read from the services' own public oEmbed endpoints — no key, no account, no backend — and offered as a name to correct. With `backend/` deployed the caption also goes to a model and a real geocoder, so the pin lands on the actual address rather than a name to look up later |
 | Getting a booking into the app | ✅ Live — paste a confirmation into the Inbox, or share it straight from your mail app. Date, time and confirmation number are read on-device, and the date is matched to a trip day. See below |
-| Forwarding real booking emails to `japan@trip.mail` | ⚠️ That address is a placeholder from the design — needs your own domain + inbound-email provider, see `server/README.md`. The paste/share route above covers the same ground without it |
+| Forwarding real booking emails to `japan@trip.mail` | ❌ Not built. The address is a placeholder from the design, and receiving mail needs your own domain, an inbound-email provider and an endpoint in `backend/` to receive it. The paste/share route above covers the same ground without any of that |
 
 Nothing here fakes success: where a real integration isn't configured, the
 UI says so (e.g. the Share Sheet explicitly says no parsing backend is
@@ -195,9 +195,10 @@ Studio, the Android SDK and a JDK installed on Windows first.
    its own key. The Map tab therefore checks for the key and shows an
    explanation instead of mounting the map when it's missing, so a keyless
    build is merely limited rather than broken — but you still want the key.
-2. **Backend** (shared pins, inbox, TikTok/IG parsing) — deploy `server/`
-   somewhere reachable from your phone and set `EXPO_PUBLIC_API_BASE_URL`.
-   See `server/README.md` for what that unlocks and what it in turn needs.
+2. **Backend** (sync between both phones, TikTok/IG parsing, model-read
+   confirmations) — deploy `backend/` and set `EXPO_PUBLIC_API_BASE_URL` and
+   `EXPO_PUBLIC_API_TOKEN`. See `backend/README.md` for the deploy steps and
+   what each piece unlocks.
 3. **Rename the bundle identifiers** in `app.json`
    (`com.blairfeldman.japantrip`) if you're publishing this rather than
    just running it on your own device.

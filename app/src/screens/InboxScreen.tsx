@@ -156,8 +156,8 @@ export default function InboxScreen() {
       </View>
       {!syncConfigured && (
         <Text style={styles.setupNote}>
-          {TRIP.inboxEmail} is a placeholder — forwarding there won't reach anything until the backend in
-          server/ is deployed against a real inbound-email domain. Until then, add bookings by hand below.
+          {TRIP.inboxEmail} is a placeholder — nothing receives mail there. Paste or share the confirmation
+          instead; it does the same job on the phone.
         </Text>
       )}
 
@@ -274,8 +274,8 @@ export default function InboxScreen() {
         </Pressable>
       )}
       <Text style={styles.footnote}>
-        Forwarding to {TRIP.inboxEmail} needs the backend in server/ deployed against a real inbound-email domain.
-        Until then, pasting or sharing the confirmation does the same job on the phone — and Tabelog has no public
+        Forwarding to {TRIP.inboxEmail} isn't wired up — receiving mail needs a domain and an inbound-email
+        provider. Pasting or sharing the confirmation does the same job on the phone — and Tabelog has no public
         API either way, so its reservations always arrive as text.
       </Text>
 

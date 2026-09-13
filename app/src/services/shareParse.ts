@@ -6,9 +6,11 @@ import { describeSharedLink } from '../utils/shareLink';
  * cover image, which is most of what you need to save a place: the caption
  * usually names it.
  *
- * This is deliberately *not* the parsing pipeline in `server/`. That one reads
- * on-screen text and pinned comments and asks a model for the actual place.
- * This just hands you a filled-in name field you can correct.
+ * This is deliberately *not* the pipeline in `backend/`. That one sends the
+ * caption to a model and geocodes what it names, so the pin lands on a real
+ * address. This just hands you a filled-in name field you can correct — it is
+ * what runs when no backend is configured, and what runs first either way so
+ * the sheet isn't empty while the server works.
  *
  * Instagram goes through Meta's `instagram_oembed`. That needed an app access
  * token and App Review from October 2020 until 15 June 2026, when Meta made
