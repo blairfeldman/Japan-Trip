@@ -158,6 +158,35 @@ so it isn't worth it at this size.
 
 Day to day: `fly logs`, `fly ssh console`, `fly deploy`, `fly secrets list`.
 
+### When a deploy fails to acquire a lease
+
+```
+Failed to acquire lease for <machine-id>: ... lease currently held by
+<uuid>@tokens.fly.io, expires at <timestamp>
+```
+
+An earlier `fly` command was interrupted and left a lock on the machine, often
+held by Fly's own automation rather than by you. It has nothing to do with the
+image — if the build printed a size, the build was fine.
+
+```powershell
+fly machine leases clear <machine-id>
+fly deploy
+```
+
+If that doesn't take, the lease expires by itself at the timestamp in the error;
+waiting and re-running works. Failing that, destroy the machine and redeploy:
+
+```powershell
+fly machine destroy <machine-id> --force
+fly deploy
+```
+
+Destroying a machine is safe for the data: the volume is a separate object and
+the replacement machine re-attaches to it. What you must *not* do is end up with
+two machines — check `fly status` afterwards and `fly scale count 1` if needed,
+for the reason in the invariants above.
+
 ### Backups
 
 Volume snapshots exist (5-day retention) but aren't yours to control:
