@@ -114,8 +114,13 @@ fly secrets set GOOGLE_MAPS_API_KEY=...
 fly deploy
 fly scale count 1                               # confirm — see the invariant above
 fly status                                      # expect exactly one machine
-curl https://YOUR-APP-NAME.fly.dev/health
+irm https://YOUR-APP-NAME.fly.dev/health        # see the note below
 ```
+
+> **`curl` is not curl in PowerShell.** It's an alias for `Invoke-WebRequest`,
+> which prompts about script execution and returns an HTML-parsing object.
+> Use `irm` (`Invoke-RestMethod`, which parses the JSON) or `curl.exe` with the
+> extension, which is the real curl shipped with Windows 10+.
 
 Fly no longer has a standing free tier — new accounts get a short trial and
 then need a card on file. This runs about $2–3/month. Set a spend limit under
