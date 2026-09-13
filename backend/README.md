@@ -219,11 +219,12 @@ row exactly once, kind filtering, tombstones reaching an incremental sync while
 staying hidden from a cold load, the 64 KB cap, and the `503`/`422` paths on
 `/parse-booking`.
 
-`python test_share.py` — 24 cases with the network stubbed: happy path to
+`python test_share.py` — 31 cases with the network stubbed: happy path to
 `pinned`; **coordinates from the model ignored in favour of the geocoder's**; no
 named place, no map match, and no caption each landing in `needs_review` with a
-reason and the post still saved; low confidence pinned but flagged; recovery on
-the third attempt and `failed` after that; re-sharing a link with different
+reason and the post still saved; low confidence pinned but flagged; a match in a
+different city flagged while keeping the coordinates; recovery on the third
+attempt and `failed` after that; re-sharing a link with different
 tracking params returning the original row; manual pin clearing the review
 reason; deleting freeing the link for a re-share.
 
@@ -232,9 +233,23 @@ yielding a contiguous `seq` run with no duplicates, and an old-schema database
 migrating cleanly with rows intact, the counter preserved, indexes built, and a
 second boot as a no-op.
 
-**Not verified:** the live request/response shapes of the two paid APIs are
-written from their documentation and exercised only through stubs. Smoke-test
-each once before trusting the pipeline:
+**Verified live on 2026-09-13:** both paid APIs answer in the documented shape.
+Claude returned `place_query`/`place_name`/`city`/`confidence` with no
+coordinates, and Places returned `lat`/`lng`/`address`/`google_place_id`.
+
+That first live call also turned up a real gap. Asking for
+`Tsuta, Sugamo, Tokyo` returned an address in **Shibuya, about 8 km away** —
+Places Text Search answers with its best match, not necessarily one in the
+locality you asked about. Nothing upstream caught it: the model was confident
+about the name and a result did come back, so it would have been saved as an
+authoritative pin. `locality_mismatch()` now flags a city-level disagreement
+into `needs_review`. It is deliberately city-level only — ward and
+neighbourhood names differ too much between captions and Google's address
+formatting to compare without constant false alarms — so a pin can still land
+in the right city and the wrong district. The address is stored either way and
+shown on the pin, which is the real backstop.
+
+To re-check the shapes after any upstream change:
 
 Easiest against the deployed app, where the keys are already in the
 environment — and it sidesteps nested-quote escaping, which is miserable in

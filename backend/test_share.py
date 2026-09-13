@@ -121,6 +121,29 @@ with TestClient(main.app) as c:
     _, item = share_and_run(c, "https://www.tiktok.com/@x/video/sharedtext", shared_text="Tsuta in Sugamo")
     check("unless the share carried the caption", item["status"] == "pinned", item["status"])
 
+    print("\n-- the geocoder answering somewhere else --")
+    # Found on the first live call: asking for "Tsuta, Sugamo, Tokyo" returned an
+    # address in Shibuya, ~8km away. A confident name plus a returned result meant
+    # it would have been pinned as authoritative with no signal anything was off.
+    stub(extraction={
+        "place_query": "Some Ramen, Kyoto", "place_name": "Some Ramen", "city": "Kyoto",
+        "country": "Japan", "category": "restaurant", "recommendation": "x", "confidence": "high",
+    })
+    extract.geocode = lambda q: {"google_place_id": "ChIJ2", "name": "Some Ramen",
+                                 "address": "1-1 Namba, Chuo Ward, Osaka", "lat": 34.66, "lng": 135.50}
+    _, item = share_and_run(c, "https://www.tiktok.com/@x/video/wrongcity")
+    check("a match in another city is flagged", item["status"] == "needs_review", item["status"])
+    check("naming the city the caption meant", "Kyoto" in item["body"]["review_reason"], item["body"].get("review_reason"))
+    check("but the coordinates are still saved", item["body"]["place"]["lat"] == 34.66)
+
+    stub()  # city Tokyo, address "1-14-1 Sugamo, Tokyo"
+    _, item = share_and_run(c, "https://www.tiktok.com/@x/video/rightcity")
+    check("a match in the right city is not flagged", item["status"] == "pinned", item["status"])
+
+    check("no city means no check", extract.locality_mismatch(None, "anywhere") is None)
+    check("no address means no check", extract.locality_mismatch("Kyoto", None) is None)
+    check("case and spacing are ignored", extract.locality_mismatch("  tokyo ", "Shibuya, TOKYO, Japan") is None)
+
     print("\n-- retries --")
     stub(fail_times=2)
     _, item = share_and_run(c, "https://www.tiktok.com/@x/video/flaky")

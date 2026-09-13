@@ -193,6 +193,28 @@ def geocode(query: str) -> Optional[dict[str, Any]]:
     }
 
 
+def locality_mismatch(city: Optional[str], address: Optional[str]) -> Optional[str]:
+    """Warn when the geocoder answered in a different place than the caption named.
+
+    Places Text Search returns its best match, not necessarily one in the
+    locality you asked about — a common restaurant name can resolve to a
+    branch, or to the wrong city entirely, with no signal that it did. Nothing
+    upstream catches this: the model is confident about the *name*, and a
+    result did come back, so the pin would be saved as authoritative.
+
+    Deliberately only city-level. Ward and neighbourhood names are too
+    inconsistent between what a caption says and how Google formats an address
+    to compare without constant false alarms, so a pin can still land in the
+    right city and the wrong district. The address is stored either way and is
+    shown on the pin, which is the real backstop.
+    """
+    if not city or not address:
+        return None
+    if city.strip().lower() in address.lower():
+        return None
+    return f"The caption pointed at {city}, but the map matched an address in a different place — check this pin."
+
+
 # --------------------------------------------------------------------------
 # 4. orchestration
 # --------------------------------------------------------------------------
@@ -259,12 +281,19 @@ def _attempt(conn: sqlite3.Connection, item_id: str) -> None:
         return
 
     body["place"] = place
+    locality_warning = locality_mismatch(extraction.get("city"), place.get("address"))
     # A low-confidence read still gets pinned, but flagged, so a wrong pin is
-    # visibly a guess rather than silently authoritative.
+    # visibly a guess rather than silently authoritative. Same for a result in
+    # a different city from the one the caption named.
     body.pop("review_reason", None)
-    status = "needs_review" if extraction.get("confidence") == "low" else "pinned"
-    if status == "needs_review":
+    if extraction.get("confidence") == "low":
         body["review_reason"] = "Low confidence — check this pin."
+        status = "needs_review"
+    elif locality_warning:
+        body["review_reason"] = locality_warning
+        status = "needs_review"
+    else:
+        status = "pinned"
     _save(conn, item_id, body, status)
 
 
