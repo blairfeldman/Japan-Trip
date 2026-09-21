@@ -19,7 +19,14 @@ interface ConverterState {
 
 interface State {
   dayIdx: number; // 0-11
-  catFilters: Partial<Record<Category, boolean>>; // true = hidden
+  /**
+   * Which category the map is showing on its own, or null for all of them.
+   *
+   * One at a time rather than a set of hidden ones: picking out the sushi
+   * places is one tap, and there is never a half-filtered state you have to
+   * read the chips to work out.
+   */
+  catFilter: Category | null;
   offline: boolean;
   pins: SavedPin[];
   inbox: InboxBooking[];
@@ -58,8 +65,7 @@ interface State {
 type Action =
   | { type: 'HYDRATE'; saved: Partial<PersistedState> | null }
   | { type: 'SET_DAY'; idx: number }
-  | { type: 'TOGGLE_CAT_FILTER'; cat: Category }
-  | { type: 'CLEAR_CAT_FILTERS' }
+  | { type: 'SET_CAT_FILTER'; cat: Category | null }
   | { type: 'SET_OFFLINE'; value: boolean }
   | { type: 'ADD_PIN'; pin: SavedPin }
   | { type: 'DELETE_PIN'; pinId: string }
@@ -84,7 +90,7 @@ type Action =
 const initialState: State = {
   // Opens on the day the trip is actually on, not the prototype's pinned Day 6.
   dayIdx: dayIndexForDate(isoDateOnly(new Date())),
-  catFilters: {},
+  catFilter: null,
   offline: false,
   pins: SEED_PINS,
   inbox: SEED_INBOX,
@@ -111,6 +117,7 @@ function reducer(state: State, action: Action): State {
         ...(action.saved ?? {}),
         decisions: migrateDecisions(action.saved?.decisions),
         deletedPins: action.saved?.deletedPins ?? {},
+        catFilter: action.saved?.catFilter ?? null,
         eventEdits: action.saved?.eventEdits ?? {},
         // Seed data is the floor: a saved-but-empty pin list shouldn't wipe
         // the places that shipped with the app.
@@ -122,10 +129,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, dayIdx: action.idx };
     case 'SET_ME':
       return { ...state, me: action.me };
-    case 'TOGGLE_CAT_FILTER':
-      return { ...state, catFilters: { ...state.catFilters, [action.cat]: !state.catFilters[action.cat] } };
-    case 'CLEAR_CAT_FILTERS':
-      return { ...state, catFilters: {} };
+    case 'SET_CAT_FILTER':
+      return { ...state, catFilter: action.cat };
     case 'SET_OFFLINE':
       return { ...state, offline: action.value };
     case 'ADD_PIN': {
@@ -256,7 +261,7 @@ function persistable(state: State): PersistedState {
     extraEvents: state.extraEvents,
     decisions: state.decisions,
     eventEdits: state.eventEdits,
-    catFilters: state.catFilters,
+    catFilter: state.catFilter,
     converter: state.converter,
     me: state.me,
     deletedPins: state.deletedPins,
@@ -287,7 +292,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     state.extraEvents,
     state.decisions,
     state.eventEdits,
-    state.catFilters,
+    state.catFilter,
     state.converter,
     state.me,
     state.deletedPins,

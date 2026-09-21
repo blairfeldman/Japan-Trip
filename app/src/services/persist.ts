@@ -17,7 +17,7 @@ export interface PersistedState {
   extraEvents: ItineraryEvent[];
   decisions: Decisions;
   eventEdits: EventEdits;
-  catFilters: Partial<Record<Category, boolean>>;
+  catFilter: Category | null;
   converter: { amount: string; dir: 'jpy' | 'usd' };
   /** Which phone this is. Per-device, so it is deliberately never synced. */
   me: Person;

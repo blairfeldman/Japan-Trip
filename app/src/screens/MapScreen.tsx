@@ -33,9 +33,7 @@ export default function MapScreen() {
     })();
   }, []);
 
-  const activeCat = (cat: string) => !state.catFilters[cat as keyof typeof state.catFilters];
-
-  const visiblePins = state.pins.filter((p) => activeCat(p.cat));
+  const visiblePins = state.catFilter ? state.pins.filter((p) => p.cat === state.catFilter) : state.pins;
   const searched = query.trim()
     ? visiblePins.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
     : visiblePins;
@@ -119,7 +117,11 @@ export default function MapScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder={`Search ${state.pins.length} saved places`}
+            placeholder={
+              state.catFilter
+                ? `Search ${visiblePins.length} ${CATEGORY[state.catFilter].label.toLowerCase()}`
+                : `Search ${state.pins.length} saved places`
+            }
             placeholderTextColor={COLORS.labelFaint}
             style={styles.searchInput}
           />
@@ -131,15 +133,32 @@ export default function MapScreen() {
           style={{ marginTop: 11, overflow: 'visible' }}
         >
           {filters.map((f) => {
-            const active = f.k === 'all' || activeCat(f.k);
+            const active = f.k === 'all' ? state.catFilter === null : state.catFilter === f.k;
             return (
               <Pressable
                 key={f.k}
-                onPress={() => (f.k === 'all' ? dispatch({ type: 'CLEAR_CAT_FILTERS' }) : dispatch({ type: 'TOGGLE_CAT_FILTER', cat: f.k }))}
-                style={[styles.filterChip, { borderColor: active ? COLORS.ink : COLORS.border, backgroundColor: '#fff' }]}
+                // Tapping the one already showing goes back to everything, so
+                // you never have to hunt for "All" to undo a tap.
+                onPress={() =>
+                  dispatch({ type: 'SET_CAT_FILTER', cat: f.k === 'all' || f.k === state.catFilter ? null : f.k })
+                }
+                style={[
+                  styles.filterChip,
+                  {
+                    borderColor: active ? COLORS.ink : COLORS.border,
+                    backgroundColor: active ? COLORS.ink : '#fff',
+                  },
+                ]}
               >
                 {f.k !== 'all' && <CategoryDot cat={f.k} size={8} />}
-                <Text style={[styles.filterText, { color: active ? COLORS.ink : COLORS.labelFaint }]}>{f.label}</Text>
+                <Text
+                  style={[
+                    styles.filterText,
+                    { color: active ? COLORS.bg : COLORS.inkMuted, fontWeight: active ? '600' : '400' },
+                  ]}
+                >
+                  {f.label}
+                </Text>
               </Pressable>
             );
           })}
@@ -187,7 +206,11 @@ export default function MapScreen() {
         ))}
         {nearby.length === 0 && (
           <Text style={styles.emptyNearby}>
-            {state.location ? 'No saved pins within 1 km right now.' : 'Waiting for a location fix…'}
+            {!state.location
+              ? 'Waiting for a location fix…'
+              : state.catFilter
+              ? `No ${CATEGORY[state.catFilter].label.toLowerCase()} within 1 km right now.`
+              : 'No saved pins within 1 km right now.'}
           </Text>
         )}
       </View>
