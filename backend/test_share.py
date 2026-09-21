@@ -223,6 +223,29 @@ with TestClient(main.app) as c:
     near = extract._km_apart(a, {"lat": 35.2166, "lng": 138.2338})
     check("a few streets over is not ambiguity", near < extract.AMBIGUOUS_KM, f"{near:.3f} km")
 
+    print("\n-- place search for adding a pin by hand --")
+    extract.search_places = lambda q, limit=3: (
+        [] if "nowhere" in q else [
+            {"google_place_id": "ChIJp", "name": "Houkokuji",
+             "address": "2-7-4 Jomyoji, Kamakura, Kanagawa", "lat": 35.3199921, "lng": 139.5692379},
+            {"google_place_id": "ChIJq", "name": "Hokokuji Temple Bamboo Garden",
+             "address": "Kamakura, Kanagawa", "lat": 35.3201, "lng": 139.5694},
+        ]
+    )
+    r = c.get("/places?q=Hokoku-ji Temple", headers=AUTH)
+    check("a landmark name is searchable", r.status_code == 200, str(r.status_code))
+    check("and comes back with candidates", len(r.json()["places"]) == 2)
+    check("carrying coordinates to pin with", r.json()["places"][0]["lat"] == 35.3199921)
+    check("nothing found is an empty list, not an error", c.get("/places?q=nowhere", headers=AUTH).json()["places"] == [])
+    check("an empty query is rejected", c.get("/places?q=%20", headers=AUTH).status_code == 422)
+    check("and it needs the token", c.get("/places?q=x").status_code == 401)
+
+    def _no_key(q, limit=3):
+        raise RuntimeError("GOOGLE_MAPS_API_KEY is not set")
+
+    extract.search_places = _no_key
+    check("no key is a 503, not a crash", c.get("/places?q=x", headers=AUTH).status_code == 503)
+
     print("\n-- an unresolvable link still shares --")
     SHORTLINKS.clear()
     stub()

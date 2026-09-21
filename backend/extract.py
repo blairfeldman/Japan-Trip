@@ -185,19 +185,12 @@ def _as_place(p: dict[str, Any]) -> Optional[dict[str, Any]]:
     }
 
 
-def geocode(query: str) -> Optional[dict[str, Any]]:
-    """Google Places Text Search. The LLM names the place; this decides where
-    it is. Never let the model supply coordinates — it will produce
-    plausible-looking ones that are simply wrong.
+def search_places(query: str, limit: int = 3) -> list[dict[str, Any]]:
+    """Google Places Text Search, as a list of candidates.
 
-    Asks for three candidates rather than one, and keeps the runner-up when it
-    is far from the winner. Text Search always answers with its best guess and
-    never says how sure it was, so a nickname that fits two places comes back
-    looking exactly like an exact match. That happened in real use: "the
-    suspension bridge of dreams in Shizuoka" matched Ikawa Yume on one share
-    and Sumatakyo Yume no tsuribashi on another, 15 km apart, both confident.
-    Extra candidates cost nothing — same request, same billable call — and the
-    gap between them is the only ambiguity signal available.
+    Shared by the extraction pipeline, which wants the best match and a sense
+    of whether it was a close call, and by the Add Pin screen, which wants the
+    candidates shown so a person can pick. One search, one behaviour.
     """
     if not GOOGLE_MAPS_API_KEY:
         raise RuntimeError("GOOGLE_MAPS_API_KEY is not set")
@@ -211,12 +204,31 @@ def geocode(query: str) -> Optional[dict[str, Any]]:
         r = client.post(
             "https://places.googleapis.com/v1/places:searchText",
             headers=headers,
-            json={"textQuery": query, "maxResultCount": 3},
+            json={"textQuery": query, "maxResultCount": limit},
         )
         r.raise_for_status()
         places = r.json().get("places") or []
 
-    candidates = [c for c in (_as_place(p) for p in places) if c is not None]
+    return [c for c in (_as_place(p) for p in places) if c is not None]
+
+
+def geocode(query: str) -> Optional[dict[str, Any]]:
+    """The one best match for a query, flagged when it was a close call.
+
+    The LLM names the place; this decides where it is. Never let the model
+    supply coordinates — it will produce plausible-looking ones that are
+    simply wrong.
+
+    Looks at three candidates rather than one, and keeps the runner-up when it
+    is far from the winner. Text Search always answers with its best guess and
+    never says how sure it was, so a nickname that fits two places comes back
+    looking exactly like an exact match. That happened in real use: "the
+    suspension bridge of dreams in Shizuoka" matched Ikawa Yume on one share
+    and Sumatakyo Yume no tsuribashi on another, 15 km apart, both confident.
+    Extra candidates cost nothing — same request, same billable call — and the
+    gap between them is the only ambiguity signal available.
+    """
+    candidates = search_places(query, 3)
     if not candidates:
         return None
 

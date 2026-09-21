@@ -8,7 +8,7 @@ import { CATEGORY, COLORS, FONT_SERIF, FONT_SERIF_REGULAR } from '../theme';
 import { Icon } from '../components/Icon';
 import { CategoryDot } from '../components/ui';
 import { Category, SavedPin } from '../types';
-import { geocodeAddress } from '../services/api';
+import { findPlaces, PlaceMatch } from '../services/api';
 import { findSamePlace } from '../services/backup';
 import { describeSharedLink } from '../utils/shareLink';
 import { newId } from '../utils/id';
@@ -23,10 +23,15 @@ export default function AddPinScreen() {
   // Set when this form was opened from a shared TikTok/Instagram link.
   const shared = route.params?.sourceUrl ? describeSharedLink(route.params.sourceUrl) : null;
   const [name, setName] = useState(route.params?.prefillName ?? '');
-  const [address, setAddress] = useState(route.params?.prefillAddress ?? '');
-  const [matched, setMatched] = useState<{ lat: number; lng: number; displayName: string } | null>(null);
+  // Seeded with the suggested name when there's no address to start from:
+  // arriving from a shared video, the place's name is the thing you'd type
+  // in anyway, and one tap on search turns it into a location.
+  const [address, setAddress] = useState(route.params?.prefillAddress ?? route.params?.prefillName ?? '');
+  const [matched, setMatched] = useState<PlaceMatch | null>(null);
+  // More than one thing can answer to "Hokoku-ji Temple", so the choice is
+  // yours rather than the first result's.
+  const [candidates, setCandidates] = useState<PlaceMatch[] | null>(null);
   const [geocoding, setGeocoding] = useState(false);
-  const [notFound, setNotFound] = useState(false);
   const [cat, setCat] = useState<Category>('food');
   const [note, setNote] = useState('');
   const [visible, setVisible] = useState(true);
@@ -39,7 +44,7 @@ export default function AddPinScreen() {
       id: '',
       name: name.trim(),
       cat,
-      address: matched.displayName,
+      address: matched.address ?? '',
       lat: matched.lat,
       lng: matched.lng,
       sub: '',
@@ -49,13 +54,23 @@ export default function AddPinScreen() {
     });
   }, [matched, state.pins, name, cat]);
 
-  async function onAddressBlur() {
+  async function runSearch() {
     if (!address.trim()) return;
     setGeocoding(true);
-    const result = await geocodeAddress(address);
-    setMatched(result);
-    setNotFound(!result);
+    setMatched(null);
+    const found = await findPlaces(address);
+    setCandidates(found);
+    // One answer needs no menu.
+    if (found.length === 1) choose(found[0]);
     setGeocoding(false);
+  }
+
+  function choose(place: PlaceMatch) {
+    setMatched(place);
+    setCandidates(null);
+    // A landmark search knows the venue's proper name; borrow it when the
+    // name field is still empty rather than leaving you to retype it.
+    if (!name.trim() && place.name) setName(place.name);
   }
 
   function onSave() {
@@ -76,7 +91,7 @@ export default function AddPinScreen() {
       id: newId('p'),
       name: name.trim(),
       cat,
-      address: matched.displayName,
+      address: matched.address ?? '',
       lat: matched.lat,
       lng: matched.lng,
       sub: note.trim() || CATEGORY[cat].label,
@@ -130,31 +145,69 @@ export default function AddPinScreen() {
       <Text style={styles.label}>Place</Text>
       <TextInput value={name} onChangeText={setName} placeholder="Place name" placeholderTextColor={COLORS.labelFaint} style={styles.placeInput} />
 
-      <Text style={styles.label}>Address</Text>
-      <TextInput
-        value={address}
-        onChangeText={(v) => {
-          setAddress(v);
-          setMatched(null);
-          setNotFound(false);
-        }}
-        returnKeyType="search"
-        onSubmitEditing={onAddressBlur}
-        onBlur={onAddressBlur}
-        placeholder="Street address"
-        placeholderTextColor={COLORS.labelFaint}
-        style={styles.addressInput}
-      />
+      <Text style={styles.label}>Where</Text>
+      <View style={styles.searchRow}>
+        <TextInput
+          value={address}
+          onChangeText={(v) => {
+            setAddress(v);
+            setMatched(null);
+            setCandidates(null);
+          }}
+          returnKeyType="search"
+          onSubmitEditing={runSearch}
+          placeholder="Name, landmark or address"
+          placeholderTextColor={COLORS.labelFaint}
+          style={[styles.addressInput, { flex: 1 }]}
+        />
+        <Pressable onPress={runSearch} disabled={!address.trim() || geocoding} style={styles.searchBtn}>
+          <Icon name="MagnifyingGlass" size={18} color={address.trim() ? '#fff' : COLORS.labelFaint} />
+        </Pressable>
+      </View>
+
+      {candidates !== null && candidates.length > 0 && (
+        <View style={styles.candidates}>
+          {candidates.map((p, i) => (
+            <Pressable
+              key={p.google_place_id ?? `${p.lat},${p.lng},${i}`}
+              onPress={() => choose(p)}
+              style={({ pressed }) => [styles.candidateRow, pressed && { backgroundColor: COLORS.hover }]}
+            >
+              <Icon name="MapPin" size={15} color={COLORS.link} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.candidateName}>{p.name ?? 'Unnamed place'}</Text>
+                {!!p.address && (
+                  <Text style={styles.candidateAddr} numberOfLines={2}>
+                    {p.address}
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       <View style={styles.matchRow}>
-        <Icon name="MapPin" size={15} color={matched ? COLORS.link : notFound ? COLORS.magentaDeep : COLORS.labelFaint} />
-        <Text style={[styles.matchText, { color: matched ? COLORS.link : notFound ? COLORS.magentaDeep : COLORS.labelFaint }]}>
+        <Icon
+          name="MapPin"
+          size={15}
+          color={matched ? COLORS.link : candidates?.length === 0 ? COLORS.magentaDeep : COLORS.labelFaint}
+        />
+        <Text
+          style={[
+            styles.matchText,
+            { color: matched ? COLORS.link : candidates?.length === 0 ? COLORS.magentaDeep : COLORS.labelFaint },
+          ]}
+        >
           {geocoding
-            ? 'Matching on the map…'
+            ? 'Looking it up…'
             : matched
-            ? `Matched · ${matched.displayName}`
-            : notFound
-            ? "Couldn't find that address — try adding the city, or a nearby landmark."
-            : 'Enter an address to match it on the map'}
+            ? `Matched · ${matched.address ?? `${matched.lat.toFixed(4)}, ${matched.lng.toFixed(4)}`}`
+            : candidates === null
+            ? 'Search for the place by name, or paste its address'
+            : candidates.length === 0
+            ? "Nothing found — try the name with its city, or a nearby landmark."
+            : 'Pick the right one'}
         </Text>
       </View>
 
@@ -218,6 +271,12 @@ const styles = StyleSheet.create({
   saveText: { color: '#fff', fontSize: 14.5, fontWeight: '600', fontFamily: FONT_SERIF },
   label: { fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: COLORS.label, marginBottom: 6, fontFamily: FONT_SERIF_REGULAR },
   placeInput: { borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingVertical: 8, fontSize: 20, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink, marginBottom: 22 },
+  searchRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+  searchBtn: { width: 46, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', borderRadius: 2 },
+  candidates: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff', marginTop: 8 },
+  candidateRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 12, borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
+  candidateName: { fontSize: 15, fontWeight: '600', fontFamily: FONT_SERIF, color: COLORS.ink },
+  candidateAddr: { fontSize: 12.5, lineHeight: 17, color: COLORS.label, marginTop: 2, fontFamily: FONT_SERIF_REGULAR },
   addressInput: { borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingVertical: 8, fontSize: 16, color: COLORS.inkMuted, fontFamily: FONT_SERIF_REGULAR, marginBottom: 8 },
   matchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 },
   matchText: { fontSize: 13, fontFamily: FONT_SERIF_REGULAR, flex: 1 },

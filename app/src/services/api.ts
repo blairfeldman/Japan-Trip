@@ -23,6 +23,15 @@ export interface RemoteItem {
   deleted: boolean;
 }
 
+/** One candidate from a place search, from the server or from Nominatim. */
+export interface PlaceMatch {
+  name: string | null;
+  address: string | null;
+  lat: number;
+  lng: number;
+  google_place_id?: string;
+}
+
 export interface ItemPage {
   items: RemoteItem[];
   next_seq: number;
@@ -87,6 +96,9 @@ export const api = {
   analyzeShareUrl: (url: string, sharedText: string, author: string) =>
     req<RemoteItem>('/share', { method: 'POST', body: JSON.stringify({ url, shared_text: sharedText, author }) }),
 
+  /** Place search — a name, a landmark, or a street address. */
+  searchPlaces: (q: string) => req<{ places: PlaceMatch[] }>(`/places?q=${encodeURIComponent(q)}`),
+
   /** Reads a confirmation with Claude. Null when no key is configured (503). */
   parseBooking: (text: string) =>
     req<{
@@ -103,18 +115,43 @@ export const api = {
  * Kept even with a backend: this runs on the phone and needs no key, so Add
  * Pin keeps working when the backend is unreachable.
  */
-export async function geocodeAddress(
-  address: string
-): Promise<{ lat: number; lng: number; displayName: string } | null> {
+export async function geocodeAddress(address: string): Promise<PlaceMatch[]> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(address)}`;
     const res = await fetch(url, { headers: { 'User-Agent': 'JapanTripApp/1.0 (personal trip planner)' } });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const json = await res.json();
-    const first = json?.[0];
-    if (!first) return null;
-    return { lat: parseFloat(first.lat), lng: parseFloat(first.lon), displayName: first.display_name };
+    if (!Array.isArray(json)) return [];
+    return json
+      .map((r: any) => ({
+        // Nominatim has no venue-name field; the first part of its
+        // comma-separated display_name is the closest thing to one.
+        name: typeof r.display_name === 'string' ? r.display_name.split(',')[0].trim() : null,
+        address: typeof r.display_name === 'string' ? r.display_name : null,
+        lat: parseFloat(r.lat),
+        lng: parseFloat(r.lon),
+      }))
+      .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
   } catch {
-    return null;
+    return [];
   }
+}
+
+/**
+ * Find a place by whatever was typed — a name, a landmark, or an address.
+ *
+ * Google Places through the backend when there is one: it knows venues and
+ * Japanese names that OpenStreetMap's address search simply doesn't return,
+ * which is why typing "Hokoku-ji Temple" used to come back empty. Nominatim
+ * otherwise, so Add Pin still works with no backend configured, and as the
+ * fallback when the server can't be reached.
+ */
+export async function findPlaces(query: string): Promise<PlaceMatch[]> {
+  const q = query.trim();
+  if (!q) return [];
+  if (syncConfigured) {
+    const res = await api.searchPlaces(q);
+    if (res?.places?.length) return res.places;
+  }
+  return geocodeAddress(q);
 }

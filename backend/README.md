@@ -287,6 +287,9 @@ are small and isolated for exactly this reason.
 - Tombstones accumulate forever. Purge ones older than both phones' last sync if
   the table ever gets big.
 - `PATCH` replaces `body` wholesale — a partial body drops the keys it omits.
+- `GET /places?q=` is the Add Pin screen's search. Same Places Text Search the
+  share pipeline uses, so a venue name or landmark resolves, not just a street
+  address. Returns up to five candidates for the caller to choose between.
 - Dedupe is per video, not per link: `/share` follows the redirect before
   inserting, so a re-share of the same TikTok returns the existing row. If the
   redirect can't be followed the shared link is stored as-is, which can leave a

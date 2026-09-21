@@ -313,6 +313,27 @@ def share(
     return row_to_item(row)
 
 
+@app.get("/places")
+def places(
+    q: str = Query(..., min_length=1, max_length=200),
+    _: None = Depends(require_token),
+) -> dict[str, Any]:
+    """Place search for the Add Pin screen.
+
+    The phone geocodes with OpenStreetMap on its own, which wants a street
+    address and is poor at Japanese venues — typing "Hokoku-ji Temple" got
+    nothing. This is the same Places Text Search the share pipeline uses, so
+    a name, a landmark or a half-remembered one all resolve, and the caller
+    gets the candidates to choose between rather than a silent best guess.
+    """
+    if not q.strip():
+        raise HTTPException(status_code=422, detail="q is empty")
+    try:
+        return {"places": extract.search_places(q, 5)}
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @app.post("/parse-booking")
 def parse_booking_route(
     payload: BookingIn,

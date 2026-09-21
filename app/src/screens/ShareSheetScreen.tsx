@@ -150,7 +150,20 @@ export default function ShareSheetScreen() {
             )}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
               <PrimaryButton label="Done" onPress={() => navigation.goBack()} />
-              <SecondaryButton label="Add by hand" onPress={() => navigation.replace('AddPin', { sourceUrl: url })} />
+              <SecondaryButton
+                label="Add by hand"
+                onPress={() =>
+                  navigation.replace('AddPin', {
+                    sourceUrl: url,
+                    // Whatever the model made of the caption, even when the
+                    // map couldn't place it — it's the best starting point
+                    // for a search, and beats retyping it off the video.
+                    prefillName: remote?.body?.extraction?.place_name ?? undefined,
+                    handle: remote?.body?.post?.author ?? undefined,
+                    thumbnailUrl: remote?.body?.post?.thumbnail_url ?? undefined,
+                  })
+                }
+              />
             </View>
           </View>
         )}

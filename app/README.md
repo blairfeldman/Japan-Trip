@@ -203,6 +203,21 @@ Studio, the Android SDK and a JDK installed on Windows first.
    (`com.blairfeldman.japantrip`) if you're publishing this rather than
    just running it on your own device.
 
+## Adding a pin by hand
+
+The **Where** field takes a venue name, a landmark or a street address —
+"Hokoku-ji Temple" works as well as "2-7-4 Jomyoji, Kamakura". Hit search and
+pick from the candidates; choosing one fills the place name too, if you
+haven't typed one.
+
+With the backend configured this is Google Places, the same search the share
+pipeline uses. Without it, the app falls back to OpenStreetMap, which wants
+something address-shaped and is weak on Japanese venues — so a name-only
+search may come back empty there.
+
+Coming in from a shared video, the search box starts pre-filled with whatever
+name was read off the post, so it's usually one tap.
+
 ## Removing a pin
 
 Open the pin and use **Remove this pin** at the bottom. It's a real deletion,
